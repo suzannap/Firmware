@@ -20,6 +20,7 @@ px4_posix_generate_alias(
 
 add_subdirectory(posix-configs/SITL/init)
 add_subdirectory(ROMFS/px4fmu_common/mixers)
+add_subdirectory(test_data)
 
 
 if ("${BOARD}" STREQUAL "eagle" OR ("${BOARD}" STREQUAL "excelsior"))
@@ -140,7 +141,7 @@ endif()
 # sitl run targets
 #
 
-set(SITL_WORKING_DIR ${PX4_BINARY_DIR}/tmp)
+set(SITL_WORKING_DIR ${PX4_BINARY_DIR}/rootfs)
 file(MAKE_DIRECTORY ${SITL_WORKING_DIR})
 px4_posix_generate_symlinks(
 	MODULE_LIST ${module_libraries}
@@ -149,6 +150,7 @@ px4_posix_generate_symlinks(
 )
 
 add_dependencies(px4 posix_init)
+add_dependencies(px4 test_data)
 add_dependencies(px4 mixer)
 
 add_custom_target(run_config
