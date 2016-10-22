@@ -1,3 +1,8 @@
+#!/usr/bin/bash
+
+# PX4 commands need the 'px4-' prefix in bash.
+source alias.sh
+
 uorb start
 
 param load
@@ -9,8 +14,6 @@ rgbledsim start
 tone_alarm start
 
 ver all
-
-sleep 1
 
 tests all
 
