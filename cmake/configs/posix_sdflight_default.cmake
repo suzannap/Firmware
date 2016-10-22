@@ -31,6 +31,7 @@ set(config_module_list
 	drivers/boards/sitl
 	drivers/qshell/posix
 
+	systemcmds/shutdown
 	systemcmds/param
 	systemcmds/mixer
 	systemcmds/ver

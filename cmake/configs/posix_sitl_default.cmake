@@ -28,6 +28,7 @@ set(config_module_list
 	systemcmds/param
 	systemcmds/perf
 	systemcmds/reboot
+	systemcmds/shutdown
 	systemcmds/sd_bench
 	systemcmds/topic_listener
 	systemcmds/ver
