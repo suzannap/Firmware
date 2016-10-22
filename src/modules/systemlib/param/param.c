@@ -146,7 +146,7 @@ FLASH_PARAMS_EXPOSE UT_array        *param_values;
 /** array info for the modified parameters array */
 FLASH_PARAMS_EXPOSE const UT_icd    param_icd = {sizeof(struct param_wbuf_s), NULL, NULL, NULL};
 
-#if !defined(PARAM_NO_ORB)
+#if !defined(PARAM_NO_ORB) && !defined(__PX4_UNIT_TESTS)
 
 /** parameter update topic handle */
 static orb_advert_t param_topic = NULL;
@@ -248,7 +248,7 @@ param_find_changed(param_t param)
 static void
 param_notify_changes(bool is_saved)
 {
-#if !defined(PARAM_NO_ORB)
+#if !defined(PARAM_NO_ORB) && !defined(__PX4_UNIT_TESTS)
 	struct parameter_update_s pup = {
 		.timestamp = hrt_absolute_time(),
 		.saved = is_saved
@@ -779,7 +779,7 @@ param_save_default(void)
 	fd = PARAM_OPEN(filename, O_WRONLY | O_CREAT, PX4_O_MODE_666);
 
 	if (fd < 0) {
-		warn("failed to open param file: %s", filename);
+		PX4_WARN("failed to open param file: %s", filename);
 		return ERROR;
 	}
 
@@ -792,7 +792,7 @@ param_save_default(void)
 	}
 
 	if (res != OK) {
-		warnx("failed to write parameters to file: %s", filename);
+		PX4_WARN("failed to write parameters to file: %s", filename);
 	}
 
 	PARAM_CLOSE(fd);
@@ -809,13 +809,13 @@ param_save_default(void)
 int
 param_load_default(void)
 {
-	warnx("param_load_default\n");
+	PX4_INFO("param_load_default");
 	int fd_load = PARAM_OPEN(param_get_default_file(), O_RDONLY);
 
 	if (fd_load < 0) {
 		/* no parameter file is OK, otherwise this is an error */
 		if (errno != ENOENT) {
-			warn("open '%s' for reading failed", param_get_default_file());
+			PX4_WARN("open '%s' for reading failed", param_get_default_file());
 			return -1;
 		}
 
@@ -826,7 +826,7 @@ param_load_default(void)
 	PARAM_CLOSE(fd_load);
 
 	if (result != 0) {
-		warn("error reading parameters from '%s'", param_get_default_file());
+		PX4_WARN("error reading parameters from '%s'", param_get_default_file());
 		return -2;
 	}
 
