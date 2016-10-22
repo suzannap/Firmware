@@ -128,7 +128,7 @@ elif [ "$debugger" == "valgrind" ]
 then
 	valgrind $sitl_command
 else
-	$sitl_command
+	eval $sitl_command
 fi
 
 popd
