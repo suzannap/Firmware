@@ -22,5 +22,5 @@ general:
   artifacts:
     - "build_px4fmu-v2_default/parameters.xml"
     - "build_px4fmu-v2_default/airframes.xml"
-    - "build_.*/src/firmware/nuttx/.*.px4"
+    - "build_.*/*.px4"
 
