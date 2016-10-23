@@ -40,7 +40,7 @@ export ROS_HOME=$JOB_DIR/.ros
 export ROS_LOG_DIR=$ROS_HOME/log
 export ROS_TEST_RESULT_DIR=$ROS_HOME/test_results/px4
 
-PX4_LOG_DIR=$ROS_HOME/rootfs/fs/microsd/log
+PX4_LOG_DIR=$ROS_HOME/log
 TEST_RESULT_TARGET_DIR=$JOB_DIR/test_results
 
 # TODO
