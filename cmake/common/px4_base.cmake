@@ -56,8 +56,8 @@ include(CMakeParseArguments)
 #
 #	px4_parse_function_args
 #
-#	This function simpliies usage of the cmake_parse_arguments module.
-#	It is inteded to be called by other functions.
+#	This function simplifies usage of the cmake_parse_arguments module.
+#	It is intended to be called by other functions.
 #
 #	Usage:
 #		px4_parse_function_args(
