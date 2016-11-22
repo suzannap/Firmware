@@ -14,8 +14,8 @@ px4_posix_generate_builtin_commands(
 
 px4_posix_generate_alias(
 	OUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/alias.sh"
-	MODULE_LIST ${module_libraries}
 	PREFIX "${PX4_BASH_PREFIX}"
+	MODULE_LIST ${module_libraries}
 )
 
 add_subdirectory(posix-configs/SITL/init)
@@ -144,9 +144,9 @@ endif()
 set(SITL_WORKING_DIR ${PX4_BINARY_DIR}/rootfs)
 file(MAKE_DIRECTORY ${SITL_WORKING_DIR})
 px4_posix_generate_symlinks(
-	MODULE_LIST ${module_libraries}
-	PREFIX ${PX4_BASH_PREFIX}
 	TARGET px4
+	PREFIX ${PX4_BASH_PREFIX}
+	MODULE_LIST ${module_libraries}
 )
 
 add_dependencies(px4 posix_init)
