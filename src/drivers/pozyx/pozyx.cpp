@@ -533,6 +533,7 @@ namespace pozyx
 int
 pozyx_main(int argc, char *argv[])
 {
+	
 	int ch;
 	enum POZYX_BUS busid = POZYX_BUS_ALL;
 	enum Rotation rotation = ROTATION_NONE;
@@ -546,27 +547,31 @@ pozyx_main(int argc, char *argv[])
 			exit(0);
 		}
 	}
+	
 
 	const char *verb = argv[optind];
 
 	//start/load driver
 	if (!strcmp(verb, "start")) {
 		pozyx::start(busid, rotation);
+		PX4_INFO("you tried to start");
 
 		exit(0);
 	}
 
 	//test driver/device
 	if (!strcmp(verb, "test")) {
-		pozyx::test(busid);
+		//pozyx::test(busid);
+		PX4_INFO("you tried to test");
 	}
 
 	//reset driver
 	if (!strcmp(verb, "reset")) {
-		pozyx::reset(busid);
+		//pozyx::reset(busid);
+		PX4_INFO("you tried to reset");
 	}
 
 
-	errx(1, "unrecognized command, try start, test, reset, calibrate, tempoff, tempon, or info");
+	errx(1, "unrecognized command, try start, test, reset");
 
 }
