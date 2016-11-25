@@ -51,6 +51,11 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_attitude.h>
 
+#include <drivers/device/i2c.h>
+#include <drivers/drv_device.h>
+
+#include "pozyx.h"
+
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
 int px4_simple_app_main(int argc, char *argv[])
@@ -74,6 +79,12 @@ int px4_simple_app_main(int argc, char *argv[])
 		 * { .fd = other_sub_fd,   .events = POLLIN },
 		 */
 	};
+
+	/*testing out I2C for Pozyx*/
+	uint8_t fwversion = 0;
+	uint8_t hwversion = 0;
+	I2C("POZYX", nullptr, bus, POZYX_I2C_ADDR, 400000);
+
 
 	int error_counter = 0;
 
@@ -110,9 +121,9 @@ int px4_simple_app_main(int argc, char *argv[])
 				/* set att and publish this information for other apps
 				 the following does not have any meaning, it's just an example
 				*/
-				att.q[0] = raw.accelerometer_m_s2[0];
-				att.q[1] = raw.accelerometer_m_s2[1];
-				att.q[2] = raw.accelerometer_m_s2[2];
+				att.rollspeed = raw.accelerometer_m_s2[0];
+				att.pitchspeed = raw.accelerometer_m_s2[1];
+				att.yawspeed = raw.accelerometer_m_s2[2];
 
 				orb_publish(ORB_ID(vehicle_attitude), att_pub, &att);
 			}

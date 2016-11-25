@@ -55,7 +55,7 @@ set(config_module_list
 	drivers/trone
 	drivers/vmount
 	modules/sensors
-
+	drivers/pozyx
 	#
 	# System commands
 	#
