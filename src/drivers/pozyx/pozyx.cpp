@@ -106,12 +106,12 @@ private:
 
 	enum Rotation 	_rotation;
 
-	struct pos_report 	_last_report;
+	//struct mag_report 	_last_report;
 
-	uint8_t			_range_bits;
-	uint8_t 		_conf_reg;
-	uint8_t 		_temperature_counter;
-	uint8_t 		_temperature_error_count;
+	//uint8_t		_range_bits;
+	//uint8_t 		_conf_reg;
+	//uint8_t 		_temperature_counter;
+	//uint8_t 		_temperature_error_count;
 
 	/*initialize automatic measurement state machine and start it*/
 	void 			start();
@@ -147,12 +147,12 @@ POZYX::POZYX(device::Device *interface, const char *path, enum Rotation rotation
 	_conf_errors(perf_alloc(PC_COUNT, "pozyx_conf_err")),
 	_sensor_ok(false),
 	_calibrated(false),
-	_rotation(rotation),
-	_last_report(0),
-	_range_bits(0),
-	_conf_reg(0),
-	_temperature_counter(0),
-	_temperature_error_count(0)
+	_rotation(rotation)
+	//_last_report(0)
+	//_range_bits(0),
+	//_conf_reg(0)
+	//_temperature_counter(0),
+	//_temperature_error_count(0)
 {
 	_device_id.devid_s.devtype = DRV_POS_DEVTYPE_POZYX;
 
@@ -169,10 +169,6 @@ POZYX::~POZYX()
 
 	if(_reports != nullptr) {
 		delete _reports;
-	}
-
-	if (_class_instance != -1) {
-		unregister_class_devname(POZYX_DEVICE_PATH, _class_instnace);
 	}
 
 	//free perf counters
@@ -196,7 +192,7 @@ POZYX::init()
 	}
 
 	//allocate basic report buffers
-	_reports = new ringbuffer::RingBuffer(2, sizeof(pos_report));
+	_reports = new ringbuffer::RingBuffer(2, sizeof(mag_report));
 
 	if (_reports == nullptr) {
 		goto out;
@@ -205,7 +201,6 @@ POZYX::init()
 	//reset device configuration
 	reset();
 
-	_class_instnace = register_class_devname(POZYX_DEVICE_PATH);
 
 	ret = OK;
 	//sensor is ok but not calibrated
@@ -218,13 +213,13 @@ out:
 ssize_t
 POZYX::read(struct file *filp, char *buffer, size_t buflen)
 {
-	unsigned count = buflen / sizeof(struct pos_report);
-	struct pos_report *pos_buf = reinterpret_cast<struct pos_report *>(buffer);
+	unsigned count = buflen / sizeof(struct mag_report);
+	struct mag_report *pos_buf = reinterpret_cast<struct mag_report *>(buffer);
 	int ret = 0;
 
 	//buffer must be large enough
 	if (count < 1) {
-		return -ENOSPC;
+		return -EIO;
 	}
 
 	//if automatic measuement enabled
@@ -232,33 +227,23 @@ POZYX::read(struct file *filp, char *buffer, size_t buflen)
 		//while space in caller's buffer and reports, copy them
 		while (count--) {
 			if (_reports->get(pos_buf)) {
-				ret += sizeof(struct pos_report);
+				ret += sizeof(struct mag_report);
 				pos_buf++;
 			}
 		}
 		//if no data, warn caller
-		return ret ? ret : -EAGIN;
+		return ret ? ret : -EIO;
 	}
 
 	//manual measurement
 	do {
 		_reports->flush();
-		//trigger measurement
-		if (OK != measure()) {
-			ret = -EIO;
-			break;
-		}
 
 		usleep(POZYX_CONVERSION_INTERVAL);
 
-		//run collection phase
-		if (OK != collect()) {
-			ret = -EIO;
-			break;
-		}
 
 		if (_reports->get(pos_buf)) {
-			ret = sizeof(struct pos_report);
+			ret = sizeof(struct mag_report);
 		}
 
 	} while(0);
@@ -269,12 +254,10 @@ POZYX::read(struct file *filp, char *buffer, size_t buflen)
 int
 POZYX::ioctl(struct file *filp, int cmd, unsigned long arg)
 {
-	unsigned dummy = arg;
+	//unsigned dummy = arg;
 
 	switch (cmd) {
-		case TESTCASE1: {
-			PX4_INFO("test case 1");			
-		}
+
 		default:
 			return CDev::ioctl(filp, cmd, arg);
 	}
@@ -298,7 +281,7 @@ POZYX::stop()
 int
 POZYX::reset()
 {
-	return set_range(_range_ga + 0.5f);
+	return 0;
 }
 
 void
@@ -364,7 +347,7 @@ POZYX::print_info()
 	perf_print_counter(_comms_errors);
 	perf_print_counter(_buffer_overflows);
 	printf("poll interval: %u ticks\n", _measure_ticks);
-	printf("output (%.2f %.2f %.2f)\n", (double)_last_report.x, (double)_last_report.y, (double)_last_report.z);
+	//printf("output (%.2f %.2f %.2f)\n", (double)_last_report.x, (double)_last_report.y, (double)_last_report.z);
 	printf("some more stuff");
 	_reports->print_info("report queue");
 }
@@ -383,13 +366,12 @@ namespace pozyx
 		POZYX_constructor interface_constructor;
 		uint8_t busnum;
 		POZYX *dev;
-	} bus_options[] = {
-		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, NULL },
-		#ifdef PX4_I2C_BUS_ONBOARD
-		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, NULL },
-		#endif
-	};
-	#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
+	} bus_options[2];
+	//bus_options[0] = { POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, NULL };
+	//bus_options[1] = { POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, NULL };
+
+		
+		#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
 
 	void 	start(enum POZYX_BUS busid, enum Rotation rotation);
 	bool 	start_bus(struct pozyx_bus_option &bus, enum Rotation rotation);
@@ -421,7 +403,7 @@ namespace pozyx
 
 		if (bus.dev != nullptr && OK != bus.dev->init()) {
 			delete bus.dev;
-			bus.dev - NULL;
+			bus.dev = NULL;
 			return false;
 		}
 
@@ -480,9 +462,9 @@ namespace pozyx
 	test(enum POZYX_BUS busid)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
-		struct pos_report report;
+		struct mag_report report;
 		ssize_t sz;
-		int ret;
+		//int ret;
 		const char *path = bus.devpath;
 
 		int fd = open(path, O_RDONLY);
@@ -527,7 +509,7 @@ namespace pozyx
 		exit(0);
 	}
 
-	intinfo(enum POZYX_BUS busid)
+	/*intinfo(enum POZYX_BUS busid)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
 
@@ -535,6 +517,7 @@ namespace pozyx
 		bus.dev->print_info();
 		exit(0);
 	}
+	*/
 
 	void
 	usage()
@@ -560,7 +543,7 @@ pozyx_main(int argc, char *argv[])
 			rotation = (enum Rotation)atoi(optarg);
 			default:
 			pozyx::usage();
-			exit(0)
+			exit(0);
 		}
 	}
 
@@ -583,10 +566,6 @@ pozyx_main(int argc, char *argv[])
 		pozyx::reset(busid);
 	}
 
-	//print driver information
-	if (!strcmp(verb, "info") || !strcmp(verb, "status")) {
-		pozyx::info(busid);
-	}
 
 	errx(1, "unrecognized command, try start, test, reset, calibrate, tempoff, tempon, or info");
 

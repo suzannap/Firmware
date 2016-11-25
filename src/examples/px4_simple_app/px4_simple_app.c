@@ -51,10 +51,10 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_attitude.h>
 
-#include <drivers/device/i2c.h>
+//#include <drivers/device/i2c.h>
 #include <drivers/drv_device.h>
 
-#include "pozyx.h"
+//#include "pozyx.h"
 
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
@@ -79,11 +79,6 @@ int px4_simple_app_main(int argc, char *argv[])
 		 * { .fd = other_sub_fd,   .events = POLLIN },
 		 */
 	};
-
-	/*testing out I2C for Pozyx*/
-	uint8_t fwversion = 0;
-	uint8_t hwversion = 0;
-	I2C("POZYX", nullptr, bus, POZYX_I2C_ADDR, 400000);
 
 
 	int error_counter = 0;

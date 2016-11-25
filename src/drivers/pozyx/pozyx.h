@@ -136,11 +136,11 @@
 
 
 #define DRV_POS_DEVTYPE_POZYX  		0x40
-#define POZYX_WHOAMI_EXPECTED		0x43;
+#define POZYX_WHOAMI_EXPECTED		0x43
 
 #define POZYX_CONVERSION_INTERVAL (400000 / 150)
 
 /* interface factory */
 extern device::Device *POZYX_I2C_interface(int bus);
-typedef device::Device *(POZYX_contructor)(int);
+typedef device::Device *(*POZYX_constructor)(int);
 

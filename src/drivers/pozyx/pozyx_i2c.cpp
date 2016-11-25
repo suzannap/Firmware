@@ -34,7 +34,7 @@
 
 device::Device *POZYX_I2C_interface(int bus);
 
-class POZYX_I2C : public device::POZYX_I2C
+class POZYX_I2C : public device::I2C
 {
 public:
 	POZYX_I2C(int bus);
@@ -60,7 +60,7 @@ POZYX_I2C_interface(int bus)
 POZYX_I2C::POZYX_I2C(int bus) :
 I2C("POZYX_I2C", nullptr, bus, POZYX_I2C_ADDR, 400000)
 {
-	_device_id.devid_s.devtype - DRV_POS_DEVTYPE_POZYX;
+	_device_id.devid_s.devtype = DRV_POS_DEVTYPE_POZYX;
 }
 
 POZYX_I2C::~POZYX_I2C()
@@ -81,12 +81,6 @@ POZYX_I2C::ioctl(unsigned operation, unsigned &arg)
 	int ret;
 	switch (operation) {
 
-	case TESTOP:
-		PX4_INFO("test case");
-		return 1;
-	case TESTOP2:
-		PX4_INFO("test case 2");
-		return 1
 	default:
 		ret = -EINVAL;
 	}
@@ -101,7 +95,7 @@ POZYX_I2C::probe()
 
 	_retries = 10;
 
-	if (read(POZYX_WHO_AM_I, &data, 1) {
+	if (read(POZYX_WHO_AM_I, &data, 1)) {
 		DEVICE_DEBUG("reg_read fail");
 		PX4_INFO("reg_read fail");
 		return -EIO;
@@ -115,7 +109,7 @@ POZYX_I2C::probe()
 		return -EIO;
 	}
 
-	return OK
+	return OK;
 
 }
 
@@ -124,13 +118,13 @@ POZYX_I2C::write(unsigned address, void *data, unsigned count)
 {
 	uint8_t buf[32];
 	if (sizeof(buf)< (count+1)) {
-		return -EIO
+		return -EIO;
 	}
 
 	buf[0] = address;
 	memcpy(&buf[1], data, count);	
 
-	return transfer(&buf[0], count + 1, nullptr, 0;)
+	return transfer(&buf[0], count + 1, nullptr, 0);
 }
 
 int
