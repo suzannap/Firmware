@@ -50,6 +50,7 @@
 #include <lib/conversion/rotation.h>
 
 #include "pozyx.h"
+#include "pozyx_i2c.cpp"
 
 
 
@@ -84,6 +85,8 @@ public:
 	* Diagnostics - print some basic information about the driver
 	*/
 	void			print_info();
+	/*read a register*/
+	int 		 	read_reg(uint8_t reg, uint8_t &val);
 
 protected:
 	Device 			*_interface;
@@ -124,8 +127,6 @@ private:
 	static void		cycle_trampoline(void *arg);
 	/*write a register*/
 	int 			write_reg(uint8_t reg, uint8_t val);
-	/*read a register*/
-	int 		 	read_reg(uint8_t reg, uint8_t &val);
 
 	POZYX(const POZYX &);
 	POZYX operator=(const POZYX &);
@@ -254,9 +255,54 @@ POZYX::read(struct file *filp, char *buffer, size_t buflen)
 int
 POZYX::ioctl(struct file *filp, int cmd, unsigned long arg)
 {
-	//unsigned dummy = arg;
+	unsigned dummy = arg;
 
 	switch (cmd) {
+		case SENSORIOCSPOLLRATE: {
+			switch(arg){
+				case SENSOR_POLLRATE_MANUAL: {
+					stop();
+					_measure_ticks = 0;
+					return OK;
+				}
+				case SENSOR_POLLRATE_EXTERNAL:
+				case 0:
+					return -EINVAL;
+				case SENSOR_POLLRATE_MAX:
+				case SENSOR_POLLRATE_DEFAULT; {
+					bool want_start = (_measure_ticks == 0);
+					_measure_ticks = USEC2TICK(POZYX_CONVERSION_INTERVAL);
+					if (want_start) {
+						start();
+					}
+					return OK;
+				}
+				default: {
+					bool want_start = (_measure_ticks == 0);
+					unsigned ticks = USEC2TICK(400000 / arg);
+					if (ticks < USEC2TICK(POZYX_CONVERSION_INTERVAL)) {
+						return -EINVAL;
+					}
+					_measure_ticks = ticks;
+					if (want_start) {
+						start();
+					}
+					return OK;
+				}
+			}
+		}
+		case SENSORIOCGPOLLRATE: {
+			if (_measure_ticks == 0) {
+				return SENSOR_POLLRATE_MANUAL;
+			}
+			return 400000 / TICK2USEC(_measure_ticks);
+		}
+		case SENSORIOCSQUEUEDEPTH: {
+			if ((arg<1) || (arg >100)) {
+				return -EINVAL;
+			}
+		}
+
 
 		default:
 			return CDev::ioctl(filp, cmd, arg);
@@ -366,9 +412,10 @@ namespace pozyx
 		POZYX_constructor interface_constructor;
 		uint8_t busnum;
 		POZYX *dev;
-	} bus_options[2];
-	//bus_options[0] = { POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, NULL };
-	//bus_options[1] = { POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, NULL };
+	} bus_options[2] = {
+		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, NULL },
+		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, NULL },
+	};
 
 		
 		#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
@@ -427,20 +474,26 @@ namespace pozyx
 	void
 	start(enum POZYX_BUS busid, enum Rotation rotation)
 	{
+		PX4_INFO("debug starting bus checkpoint 1 ");
 		bool started = false;
 
 		for (unsigned i = 0; i < NUM_BUS_OPTIONS; i++) {
+			PX4_INFO("debug starting bus checkpoint 2 ");
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
+				PX4_INFO("debug starting bus checkpoint 3 ");
 				continue;
 			}
 
 			if (busid != POZYX_BUS_ALL && bus_options[i].busid != busid) {
+				PX4_INFO("debug starting bus checkpoint 4 ");
 				continue;
 			}
 
 			started |= start_bus(bus_options[i], rotation);
+			PX4_INFO("debug starting bus checkpoint 5 ");
 		}
 		if (!started) {
+			PX4_INFO("debug starting bus checkpoint 6 ");	
 			exit(1);
 		}
 	}
@@ -461,23 +514,38 @@ namespace pozyx
 	void
 	test(enum POZYX_BUS busid)
 	{
+		PX4_INFO("debug made it here 1 ");
 		struct pozyx_bus_option &bus = find_bus(busid);
 		struct mag_report report;
 		ssize_t sz;
+		PX4_INFO("debug made it here 1.5 ");
 		//int ret;
 		const char *path = bus.devpath;
+		PX4_INFO("debug made it here 2 ");
 
 		int fd = open(path, O_RDONLY);
+		PX4_INFO("debug made it here 3 ");
 
 		if (fd < 0) {
 			err(1, "%s open failed (try 'pozyx start')", path);			
 		}
+		PX4_INFO("debug made it here 4 ");
+		uint8_t whoami = 0;
+		sz = bus.dev->read_reg(POZYX_WHO_AM_I, whoami);
 
-		sz = read(fd, &report, sizeof(report));
-
-		if (sz != sizeof(report)) {
+		if (sz < 1) {
 			err(1, "immediate read failed");
 		}
+		else {
+			if (whoami == POZYX_WHOAMI_EXPECTED){
+				PX4_INFO("Who Am I Check Successful");
+			}
+			else{
+				PX4_INFO("Who Am I Check Failed: %3.0",whoami);
+			}
+		}
+		
+		PX4_INFO("made it here 5 ");
 
 		warnx("single read");
 		warnx("measurement: %6f %6f %6f", (double)report.x, (double)report.y, (double)report.z);
@@ -554,21 +622,24 @@ pozyx_main(int argc, char *argv[])
 	//start/load driver
 	if (!strcmp(verb, "start")) {
 		pozyx::start(busid, rotation);
-		PX4_INFO("you tried to start");
+		PX4_INFO("debug you tried to start");
 
 		exit(0);
 	}
 
 	//test driver/device
 	if (!strcmp(verb, "test")) {
-		//pozyx::test(busid);
-		PX4_INFO("you tried to test");
+		PX4_INFO("debug you tried to test. here goes nothing...");
+		pozyx::test(busid);
+		exit(0);
 	}
+
 
 	//reset driver
 	if (!strcmp(verb, "reset")) {
 		//pozyx::reset(busid);
-		PX4_INFO("you tried to reset");
+		PX4_INFO("debug you tried to reset");
+		exit(0);
 	}
 
 
