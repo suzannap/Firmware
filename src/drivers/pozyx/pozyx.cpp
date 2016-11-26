@@ -269,7 +269,7 @@ POZYX::ioctl(struct file *filp, int cmd, unsigned long arg)
 				case 0:
 					return -EINVAL;
 				case SENSOR_POLLRATE_MAX:
-				case SENSOR_POLLRATE_DEFAULT; {
+				case SENSOR_POLLRATE_DEFAULT: {
 					bool want_start = (_measure_ticks == 0);
 					_measure_ticks = USEC2TICK(POZYX_CONVERSION_INTERVAL);
 					if (want_start) {
@@ -301,8 +301,27 @@ POZYX::ioctl(struct file *filp, int cmd, unsigned long arg)
 			if ((arg<1) || (arg >100)) {
 				return -EINVAL;
 			}
+			irqstate_t flags = px4_enter_critical_section();
+			if(!_reports->resize(arg)) {
+				px4_leave_critical_section(flags);
+				return -ENOMEM;
+			}
+			px4_leave_critical_section(flags);
+			return OK;
 		}
-
+		case SENSORIOCGQUEUEDEPTH: 
+			return _reports->size();
+		case SENSORIOCRESET:
+			return reset();
+		case MAGIOCSSAMPLERATE:
+			return ioctl(filp, SENSORIOCSPOLLRATE,arg);
+		case MAGIOCGSAMPLERATE:
+			return 400000 / TICK2USEC(_measure_ticks);
+		case MAGIOCGEXTERNAL:
+			DEVICE_DEBUG("MAGIOCGEXTERNAL in main driver");
+			return _interface->ioctl(cmd, dummy);
+		case DEVIOCGDEVICEID:
+			return _interface->ioctl(cmd, dummy);
 
 		default:
 			return CDev::ioctl(filp, cmd, arg);
