@@ -85,8 +85,10 @@ public:
 	* Diagnostics - print some basic information about the driver
 	*/
 	void			print_info();
+	/*write a register*/
+	int 			write_reg(uint8_t reg, uint8_t val, uint8_t len);
 	/*read a register*/
-	int 		 	read_reg(uint8_t reg, uint8_t &val);
+	int 		 	read_reg(uint8_t reg, uint8_t &val, uint8_t len);
 
 protected:
 	Device 			*_interface;
@@ -125,8 +127,6 @@ private:
 
 	void			cycle();
 	static void		cycle_trampoline(void *arg);
-	/*write a register*/
-	int 			write_reg(uint8_t reg, uint8_t val);
 
 	POZYX(const POZYX &);
 	POZYX operator=(const POZYX &);
@@ -214,40 +214,11 @@ out:
 ssize_t
 POZYX::read(struct file *filp, char *buffer, size_t buflen)
 {
-	unsigned count = buflen / sizeof(struct mag_report);
-	struct mag_report *pos_buf = reinterpret_cast<struct mag_report *>(buffer);
+	PX4_INFO("pozyx read attempted");
+	//unsigned count = buflen;
 	int ret = 0;
 
-	//buffer must be large enough
-	if (count < 1) {
-		return -EIO;
-	}
 
-	//if automatic measuement enabled
-	if (_measure_ticks > 0) {
-		//while space in caller's buffer and reports, copy them
-		while (count--) {
-			if (_reports->get(pos_buf)) {
-				ret += sizeof(struct mag_report);
-				pos_buf++;
-			}
-		}
-		//if no data, warn caller
-		return ret ? ret : -EIO;
-	}
-
-	//manual measurement
-	do {
-		_reports->flush();
-
-		usleep(POZYX_CONVERSION_INTERVAL);
-
-
-		if (_reports->get(pos_buf)) {
-			ret = sizeof(struct mag_report);
-		}
-
-	} while(0);
 
 	return ret;
 }
@@ -390,17 +361,17 @@ POZYX::cycle()
 }
 
 int
-POZYX::write_reg(uint8_t reg, uint8_t val)
+POZYX::write_reg(uint8_t reg, uint8_t val, uint8_t len)
 {
 	uint8_t buf = val;
-	return _interface->write(reg, &buf, 1);
+	return _interface->write(reg, &buf, len);
 }
 
 int
-POZYX::read_reg(uint8_t reg, uint8_t &val)
+POZYX::read_reg(uint8_t reg, uint8_t &val, uint8_t len)
 {
 	uint8_t buf = val;
-	int ret = _interface->read(reg, &buf, 1);
+	int ret = _interface->read(reg, &buf, len);
 	val = buf;
 	return ret;
 }
@@ -493,26 +464,20 @@ namespace pozyx
 	void
 	start(enum POZYX_BUS busid, enum Rotation rotation)
 	{
-		PX4_INFO("debug starting bus checkpoint 1 ");
 		bool started = false;
 
 		for (unsigned i = 0; i < NUM_BUS_OPTIONS; i++) {
-			PX4_INFO("debug starting bus checkpoint 2 ");
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
-				PX4_INFO("debug starting bus checkpoint 3 ");
 				continue;
 			}
 
 			if (busid != POZYX_BUS_ALL && bus_options[i].busid != busid) {
-				PX4_INFO("debug starting bus checkpoint 4 ");
 				continue;
 			}
 
 			started |= start_bus(bus_options[i], rotation);
-			PX4_INFO("debug starting bus checkpoint 5 ");
 		}
 		if (!started) {
-			PX4_INFO("debug starting bus checkpoint 6 ");	
 			exit(1);
 		}
 	}
@@ -533,26 +498,21 @@ namespace pozyx
 	void
 	test(enum POZYX_BUS busid)
 	{
-		PX4_INFO("debug made it here 1 ");
 		struct pozyx_bus_option &bus = find_bus(busid);
-		struct mag_report report;
-		ssize_t sz;
-		PX4_INFO("debug made it here 1.5 ");
+		int testread;
 		//int ret;
 		const char *path = bus.devpath;
-		PX4_INFO("debug made it here 2 ");
 
 		int fd = open(path, O_RDONLY);
-		PX4_INFO("debug made it here 3 ");
 
 		if (fd < 0) {
 			err(1, "%s open failed (try 'pozyx start')", path);			
 		}
-		PX4_INFO("debug made it here 4 ");
 		uint8_t whoami = 0;
-		sz = bus.dev->read_reg(POZYX_WHO_AM_I, whoami);
+		testread = bus.dev->read_reg(POZYX_WHO_AM_I, whoami, 1);
+		PX4_INFO("value of whoami is: 0x%x", whoami);
 
-		if (sz < 1) {
+		if (testread != OK) {
 			err(1, "immediate read failed");
 		}
 		else {
@@ -560,19 +520,10 @@ namespace pozyx
 				PX4_INFO("Who Am I Check Successful");
 			}
 			else{
-				PX4_INFO("Who Am I Check Failed: %3.0",whoami);
+				PX4_INFO("Who Am I Check Failed: 0x%x",whoami);
 			}
 		}
 		
-		PX4_INFO("made it here 5 ");
-
-		warnx("single read");
-		warnx("measurement: %6f %6f %6f", (double)report.x, (double)report.y, (double)report.z);
-		warnx("time:	%lld", report.timestamp);
-
-		//skip this stufff
-
-		errx(0, "PASS");
 	}
 
 	void
@@ -641,14 +592,14 @@ pozyx_main(int argc, char *argv[])
 	//start/load driver
 	if (!strcmp(verb, "start")) {
 		pozyx::start(busid, rotation);
-		PX4_INFO("debug you tried to start");
+		PX4_INFO("pozyx started");
 
 		exit(0);
 	}
 
 	//test driver/device
 	if (!strcmp(verb, "test")) {
-		PX4_INFO("debug you tried to test. here goes nothing...");
+		PX4_INFO("testing pozyx...");
 		pozyx::test(busid);
 		exit(0);
 	}
