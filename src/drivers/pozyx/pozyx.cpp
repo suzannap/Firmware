@@ -89,6 +89,8 @@ public:
 	int 			write_reg(uint8_t reg, uint8_t val, uint8_t len);
 	/*read a register*/
 	int 		 	read_reg(uint8_t reg, uint8_t &val, uint8_t len);
+	//*function call*/
+	int 			function_reg(uint8_t reg, uint8_t &val, uint8_t len);
 
 protected:
 	Device 			*_interface;
@@ -376,6 +378,16 @@ POZYX::read_reg(uint8_t reg, uint8_t &val, uint8_t len)
 	return ret;
 }
 
+int
+POZYX::function_reg(uint8_t reg, uint8_t &val, uint8_t len)
+{
+	uint8_t buf = val;
+	int ret = _interface->write(reg, &buf, len);
+	val = buf;
+	return ret;
+}
+
+
 void
 POZYX::print_info()
 {
@@ -523,11 +535,26 @@ namespace pozyx
 				PX4_INFO("Who Am I Check Failed: 0x%x",whoami);
 			}
 		}
-		//turn on LED3
-		uint8_t led3on = 0x44;
-		testread = bus.dev->write_reg(POZYX_LED_CTRL, led3on, 1);
-		
+		//test a function call by blinking LED3
+		uint8_t funcbuf[100];
+		funcbuf[0] = 0x44;
+
+		testread = bus.dev->function_reg(POZYX_LED_CTRL, funcbuf[0], 1);
+		if (funcbuf[0] != 1) {
+			err(1, "Function test failed");
+		}
+		PX4_INFO("LED3 turned On... ");
+		sleep(3);
+		funcbuf[0] = 0x40;
+		testread = bus.dev->function_reg(POZYX_LED_CTRL, funcbuf[0], 1);
+		if (funcbuf[0] != 1) {
+			err(1, "Function test failed");
+		}
+		PX4_INFO("LED3 turned Off");
+
+		errx(0, "PASS");
 	}
+
 
 	void
 	reset(enum POZYX_BUS busid)
