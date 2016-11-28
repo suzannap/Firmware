@@ -523,6 +523,9 @@ namespace pozyx
 				PX4_INFO("Who Am I Check Failed: 0x%x",whoami);
 			}
 		}
+		//turn on LED3
+		uint8_t led3on = 0x44;
+		testread = bus.dev->write_reg(POZYX_LED_CTRL, led3on, 1);
 		
 	}
 
