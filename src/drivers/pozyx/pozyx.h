@@ -299,3 +299,180 @@
 extern device::Device *POZYX_I2C_interface(int bus);
 typedef device::Device *(*POZYX_constructor)(int);
 
+
+typedef float float32_t;
+/** 
+* The UWB settings type defines all attributes needed to set the UWB (communication) parameters
+*/
+typedef struct _UWB_settings {    
+    /** The UWB channel number. Possible values are 1, 2, 3, 4, 5, 7. See the reg:POZYX_UWB_CHANNEL register for more information. */
+    uint8_t channel;  
+    /** The bitrate. Possible values are 
+    *
+    * - 0: 110kbits/s
+    * - 1: 850kbits/s
+    * - 2: 6.8Mbits/s. 
+    *
+    * See the reg:POZYX_UWB_RATES register for more information */              
+    uint8_t bitrate; 
+    /** The UWB pulse repetition frequency (PRF). Possible values are 
+    * 
+    * - 1: 16MHz
+    * - 2: 64MHz 
+    *
+    * See the reg:POZYX_UWB_RATES register for more information */                    
+    uint8_t prf;                 
+    /** The preabmle length. Possible values are:
+    *
+    * - 0x0C : 4096 symbols.
+    * - 0x28 : 2048 symbols. 
+    * - 0x18 : 1536 symbols. 
+    * - 0x08 : 1024 symbols.
+    * - 0x34 : 512 symbols. 
+    * - 0x24 : 256 symbols. 
+    * - 0x14 : 128 symbols. 
+    * - 0x04 : 64 symbols.  
+    *
+    * See the reg:POZYX_UWB_PLEN register for more information.
+    */ 
+    uint8_t plen;                   
+    /** The transmission gain in dB. Possible values are between 0dB and 33.5dB, with a resolution of 0.5dB. See the reg:POZYX_UWB_GAIN register for more information.*/
+    float gain_db;                                  
+}UWB_settings_t;
+
+/**
+* The coordinates type defines the coordinates of position result or anchor location
+*/
+typedef struct __attribute__((packed))_coordinates {    
+    /** The x-coordinate in mm */
+    int32_t x;                      
+    /** The y-coordinate in mm */
+    int32_t y;                      
+    /** The z-coordinate in mm */
+    int32_t z;                      
+}coordinates_t;
+
+/** 
+ * A structure representing a 3D vector with floating points. 
+ * This type is used to represent most of the sensor values that have components in 3 dimensions.
+ */
+typedef struct __attribute__((packed))_v3D_float32 {
+    /** The x-coordinate of the vector */
+    float32_t x;                      
+    /** The y-coordinate of the vector */
+    float32_t y;                      
+    /** The z-coordinate of the vector */
+    float32_t z;  
+}v3D_float32_t;    
+
+// some supporting types for specific sensors
+typedef v3D_float32_t acceleration_t;
+typedef v3D_float32_t magnetic_t;
+typedef v3D_float32_t angular_vel_t;
+typedef v3D_float32_t linear_acceleration_t;
+typedef v3D_float32_t gravity_vector_t;
+
+
+/**
+* The position error type gives the resulting error covariance for a given position result
+*/
+typedef struct __attribute__((packed))_pos_error {    
+    /** The variance in the x-coordinate */
+    int16_t x;
+    /** The variance in the y-coordinate */
+    int16_t y;
+    /** The variance in the z-coordinate */
+    int16_t z;
+    /** The covariance of xy */
+    int16_t xy;
+    /** The covariance of xz */
+    int16_t xz;
+    /** The covariance of yz */
+    int16_t yz;
+}pos_error_t;
+
+/**
+* The euler angles type holds the absolute orientation of the pozyx device using the Euler angles (yaw, pitch, roll) representation
+*/
+typedef struct __attribute__((packed))_euler_angles {    
+    /** The heading (yaw) in degrees. */
+    float32_t heading;
+    /** The roll in degrees. */
+    float32_t roll;
+    /** The pitch in degrees. */
+    float32_t pitch;
+}euler_angles_t;
+
+/**
+* The quaternion_t type holds the absolute orientation of the pozyx device using the a quaternion representation
+*/
+typedef struct __attribute__((packed))_quaternion {    
+    /** weight of the quaterion. */
+    float32_t weight;
+    /** x-coordinate of the quaterion. */
+    float32_t x;
+    /** y-coordinate of the quaterion. */
+    float32_t y;
+    /** z-coordinate of the quaterion. */
+    float32_t z;
+}quaternion_t;
+
+/**
+* raw sensor data. This follows the ordering of the pozyx registers
+*/
+typedef struct __attribute__((packed))_sensor_raw {
+    uint32_t pressure;
+    int16_t acceleration[3];
+    int16_t magnetic[3];
+    int16_t angular_vel[3];
+    int16_t euler_angles[3];
+    int16_t quaternion[4];
+    int16_t linear_acceleration[3];
+    int16_t gravity_vector[3];
+    uint8_t temperature;   
+}sensor_raw_t;
+
+/**
+* The sensor data type allows to read the whole sensor data in one datastructure with one call
+*/
+typedef struct __attribute__((packed))_sensor_data { 
+    float32_t pressure;
+    acceleration_t acceleration;
+    magnetic_t magnetic;
+    angular_vel_t angular_vel;
+    euler_angles_t euler_angles;
+    quaternion_t quaternion;
+    linear_acceleration_t linear_acceleration;
+    gravity_vector_t gravity_vector;
+    float32_t temperature;   
+}sensor_data_t;
+
+/**
+* The device_coordinates_t type is used to describe a pozyx device required for the device list
+*/
+typedef struct __attribute__((packed))_device_coordinates { 
+    /** the unique 16-bit network id (by default this is the same as on the label of the device) */
+    uint16_t network_id;
+    /** a flag indicating some aspects of the device such as anchor or tag. 
+     * Possible values are:
+     *
+     * - 1 : anchor
+     * - 2 : tag
+     */
+    uint8_t flag;
+    /** The coordinates of the device */
+    coordinates_t pos;
+}device_coordinates_t;
+
+/**
+* The device range type stores all the attributes linked to a range measurement
+*/
+typedef struct __attribute__((packed))_device_range {      
+    /** The timestamp in ms of the range measurement. */ 
+    uint32_t timestamp;
+    /** The distance in mm. */
+    uint32_t distance;
+    /** The received signal strength in dBm. */
+    int16_t RSS;
+}device_range_t;
+
