@@ -53,6 +53,8 @@
 #include "pozyx.h"
 #include "pozyx_i2c.cpp"
 
+//#include <iostream>
+//using namespace std;
 
 
 enum POZYX_BUS {
@@ -71,55 +73,117 @@ static const int ERROR = -1;
 # error This requires CONFIG_SCHED_WORKQUEUE.
 #endif
 
+
 class POZYX : public device::CDev
 {
 public:
-	POZYX(device::Device *interface, const char *path, enum Rotation rotation);
+	POZYX(device::Device *interface, const char *path);
 	virtual ~POZYX();
 
 	virtual int 	init();
-
-	virtual ssize_t read(struct file *filp, char *buffer, size_t buflen);
-	virtual int 	ioctl(struct file *filp, int cmd, unsigned long arg);
-
 	/**
 	* Diagnostics - print some basic information about the driver
 	*/
-	void			print_info();
-	/*write a register*/
-	int 			regWrite(uint8_t reg_address, uint8_t *pData, int size);
-	/*read a register*/
-	int 			regRead(uint8_t reg_address, uint8_t *pData, int size);
-	//*function call*/
-	int 			regFunction(uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size);
+	void 			IRQ();
+	bool 		    waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt);
+	bool 			waitForFlag_safe(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt);
 
+	void			print_info();
+	/*read/write local registers, and local function calls*/
+	int 			regWrite(uint8_t reg_address, uint8_t *pData, int size);
+	int 			regRead(uint8_t reg_address, uint8_t *pData, int size);
+	int 			regFunction(uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size);
+	/*read/write remote registers, and remote function calls*/
+	int 			remoteRegWrite(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size);
+	int 			remoteRegRead(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size);
+	int 			remoteRegFunction(uint16_t destination, uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size);
+
+    static int getLastNetworkId(uint16_t *network_id, uint16_t remote_id = NULL);
+    static int getLastDataLength(uint8_t *data_length, uint16_t remote_id = NULL);
+    static int getNetworkId(uint16_t *network_id);
+    static int setNetworkId(uint16_t network_id, uint16_t remote_id = NULL);
+    static int getUWBSettings(UWB_settings_t *UWB_settings, uint16_t remote_id = NULL);
+    static int setUWBSettings(UWB_settings_t *UWB_settings, uint16_t remote_id = NULL);
+    static int setUWBChannel(int channel_num, uint16_t remote_id = NULL);
+    static int getUWBChannel(int* channel_num, uint16_t remote_id = NULL);
+    static int setTxPower(float txgain_dB, uint16_t remote_id = NULL);
+    static int getTxPower(float* txgain_dB, uint16_t remote_id = NULL);
+    static int getWhoAmI(uint8_t *whoami, uint16_t remote_id = NULL);
+    static int getFirmwareVersion(uint8_t *firmware, uint16_t remote_id = NULL);
+    static int getHardwareVersion(uint8_t *hardware, uint16_t remote_id = NULL);
+    static int getSelftest(uint8_t *selftest, uint16_t remote_id = NULL);
+   	static int getErrorCode(uint8_t *error_code, uint16_t remote_id = NULL);
+   	static int getInterruptStatus(uint8_t *interrupts, uint16_t remote_id = NULL);
+    static int getCalibrationStatus(uint8_t *calibration_status, uint16_t remote_id = NULL);
+    static int getGPIO(int gpio_num, uint8_t *value, uint16_t remote_id = NULL);
+    static int setGPIO(int gpio_num, uint8_t value, uint16_t remote_id = NULL);
+    static void resetSystem(uint16_t remote_id = NULL);
+    static int setLed(int led_num, bool state, uint16_t remote_id = NULL);
+    static int getInterruptMask(uint8_t *mask, uint16_t remote_id = NULL);
+    static int setInterruptMask(uint8_t mask, uint16_t remote_id = NULL);
+    static int getConfigModeGPIO(int gpio_num, uint8_t *mode, uint16_t remote_id = NULL);
+    static int getConfigPullGPIO(int gpio_num, uint8_t *pull, uint16_t remote_id = NULL);
+    static int setConfigGPIO(int gpio_num, int mode, int pull, uint16_t remote_id = NULL);
+    static int setLedConfig(uint8_t config = 0x0, uint16_t remote_id = NULL);
+    static int configInterruptPin(int pin, int mode, int bActiveHigh, int bLatch, uint16_t remote_id=NULL);
+    static int saveConfiguration(int type, uint8_t registers[] = NULL, int num_registers = 0, uint16_t remote_id = NULL);
+    static int clearConfiguration(uint16_t remote_id = NULL);
+    static bool isRegisterSaved(uint8_t regAddress, uint16_t remote_id = NULL);
+    static int getNumRegistersSaved(uint16_t remote_id = NULL);
+    static int getCoordinates(coordinates_t *coordinates, uint16_t remote_id = NULL);
+    static int setCoordinates(coordinates_t coordinates, uint16_t remote_id = NULL);
+    static int getPositionError(pos_error_t *pos_error, uint16_t remote_id = NULL);
+    static int setPositioningAnchorIds(uint16_t anchors[], int anchor_num, uint16_t remote_id = NULL);
+    static int getPositioningAnchorIds(uint16_t anchors[], int anchor_num, uint16_t remote_id = NULL);
+    static int getUpdateInterval(uint16_t *ms, uint16_t remote_id = NULL);
+    static int setUpdateInterval(uint16_t ms, uint16_t remote_id = NULL);
+    static int getPositionAlgorithm(uint8_t *algorithm, uint16_t remote_id = NULL);
+    static int getPositionDimension(uint8_t *dimension, uint16_t remote_id = NULL);
+    static int setPositionAlgorithm(int algorithm = POZYX_POS_ALG_UWB_ONLY, int dimension = 0x0, uint16_t remote_id = NULL);
+    static int getAnchorSelectionMode(uint8_t *mode, uint16_t remote_id = NULL);
+    static int getNumberOfAnchors(uint8_t *nr_anchors, uint16_t remote_id = NULL);
+    static int setSelectionOfAnchors(int mode, int nr_anchors, uint16_t remote_id = NULL);
+    static int getOperationMode(uint8_t *mode, uint16_t remote_id = NULL);
+    static int setOperationMode(uint8_t mode, uint16_t remote_id = NULL);
+    //static string getSystemError(uint16_t remote_id = NULL);
+    static int getSensorMode(uint8_t *sensor_mode, uint16_t remote_id = NULL);
+    static int setSensorMode(uint8_t sensor_mode, uint16_t remote_id = NULL);
+    static int getAllSensorData(sensor_data_t *sensor_data, uint16_t remote_id = NULL);
+    static int getPressure_Pa(float32_t *pressure, uint16_t remote_id = NULL);
+    static int getAcceleration_mg(acceleration_t *acceleration, uint16_t remote_id = NULL);
+    static int getMagnetic_uT(magnetic_t *magnetic, uint16_t remote_id = NULL);
+    static int getAngularVelocity_dps(angular_vel_t *angular_vel, uint16_t remote_id = NULL);
+    static int getEulerAngles_deg(euler_angles_t *euler_angles, uint16_t remote_id = NULL);
+    static int getQuaternion(quaternion_t *quaternion, uint16_t remote_id = NULL);
+    static int getLinearAcceleration_mg(linear_acceleration_t *linear_acceleration, uint16_t remote_id = NULL);
+    static int getGravityVector_mg(gravity_vector_t *gravity_vector, uint16_t remote_id = NULL);
+    static int getTemperature_c(float32_t *temperature, uint16_t remote_id = NULL);
+    static int doPositioning(coordinates_t *position, uint8_t dimension = POZYX_2D, int32_t height = 0, uint8_t algorithm = POZYX_POS_ALG_UWB_ONLY);
+    static int doRemotePositioning(uint16_t remote_id, coordinates_t *coordinates, uint8_t dimension = POZYX_2D, int32_t height = 0, uint8_t algorithm = 0);
+    static int doRanging(uint16_t destination, device_range_t *range);
+    static int doRemoteRanging(uint16_t device_from, uint16_t device_to, device_range_t *range);
+    static int getDeviceRangeInfo(uint16_t device_id, device_range_t *device_range, uint16_t remote_id = NULL);
+    static int getDeviceListSize(uint8_t *device_list_size, uint16_t remote_id = NULL);
+    static int getDeviceIds(uint16_t devices[], int size, uint16_t remote_id = NULL);
+    static int getAnchorIds(uint16_t anchors[], int size, uint16_t remote_id = NULL);
+    static int getTagIds(uint16_t tags[], int size, uint16_t remote_id = NULL);
+    static int doDiscovery(int type = 0x0, int slots = 3, int slot_duration = 10);
+    static int doAnchorCalibration(int dimension = POZYX_2D, int num_measurements = 10, int num_anchors = 0, uint16_t anchors[] = NULL,  int32_t heights[] = NULL);
+    static int clearDevices(uint16_t remote_id = NULL);
+    static int addDevice(device_coordinates_t device_coordinates, uint16_t remote_id = NULL);
+    static int getDeviceCoordinates(uint16_t device_id, coordinates_t *coordinates, uint16_t remote_id = NULL);
+
+/** @}*/    
 protected:
-	Device 			*_interface;
+	Device 		*_interface;
+	static int _mode;               // the mode of operation, can be MODE_INTERRUPT or MODE_POLLING
+    static int _interrupt;          // variable to indicate that an interrupt has occured
+
+    static int _hw_version;         // Pozyx harware version 
+    static int _fw_version;         // Pozyx software (firmware) version. (By updating the firmware on the Pozyx device, this value can change)
 
 private:
-	work_s			_work;
-	unsigned		_measure_ticks;
 
-	ringbuffer::RingBuffer *_reports;
-
-	perf_counter_t	_sample_perf;
-	perf_counter_t 	_comms_errors;
-	perf_counter_t 	_buffer_overflows;
-	perf_counter_t 	_range_errors;
-	perf_counter_t  _conf_errors;
-
-	/*status reporting */
-	bool 			_sensor_ok; 	/*sensor was found and reports ok */
-	bool 			_calibrated;	/*calibration is valid*/
-
-	enum Rotation 	_rotation;
-
-	//struct mag_report 	_last_report;
-
-	//uint8_t		_range_bits;
-	//uint8_t 		_conf_reg;
-	//uint8_t 		_temperature_counter;
-	//uint8_t 		_temperature_error_count;
 
 	/*initialize automatic measurement state machine and start it*/
 	void 			start();
@@ -129,7 +193,6 @@ private:
 	int 			reset();
 
 	void			cycle();
-	static void		cycle_trampoline(void *arg);
 
 	POZYX(const POZYX &);
 	POZYX operator=(const POZYX &);
@@ -138,179 +201,37 @@ private:
 /*Driver 'main' command.*/
 extern "C" __EXPORT int pozyx_main(int argc, char *argv[]);
 
-POZYX::POZYX(device::Device *interface, const char *path, enum Rotation rotation) :
+POZYX::POZYX(device::Device *interface, const char *path) :
 	CDev("POZYX", path),
-	_interface(interface),
-	_work{},
-	_measure_ticks(0),
-	_reports(nullptr),
-	_sample_perf(perf_alloc(PC_ELAPSED, "pozyx_read")),
-	_comms_errors(perf_alloc(PC_COUNT, "pozyx_com_err")),
-	_buffer_overflows(perf_alloc(PC_COUNT, "pozyx_buf_of")),
-	_range_errors(perf_alloc(PC_COUNT, "pozyx_rng_err")),
-	_conf_errors(perf_alloc(PC_COUNT, "pozyx_conf_err")),
-	_sensor_ok(false),
-	_calibrated(false),
-	_rotation(rotation)
-	//_last_report(0)
-	//_range_bits(0),
-	//_conf_reg(0)
-	//_temperature_counter(0),
-	//_temperature_error_count(0)
+	_interface(interface)
 {
-	_device_id.devid_s.devtype = DRV_POS_DEVTYPE_POZYX;
 
-	//enable debug() calls
-	_debug_enabled = false;
-
-	memset(&_work, 0, sizeof(_work));
 }
 
 POZYX::~POZYX()
 {
 	//make sure we are inactive
 	stop();
-
-	if(_reports != nullptr) {
-		delete _reports;
-	}
-
-	//free perf counters
-	perf_free(_sample_perf);
-	perf_free(_comms_errors);
-	perf_free(_buffer_overflows);
-	perf_free(_range_errors);
-	perf_free(_conf_errors);
 }
 
+//include functions defined in pozyx_lib.cpp
+#include "Pozyx_lib.h"
 int
 POZYX::init()
 {
-	int ret = ERROR;
-
-	ret = CDev::init();
-
-	if (ret != OK) {
-		DEVICE_DEBUG("CDev init failed");
-		goto out;
-	}
-
-	//allocate basic report buffers
-	_reports = new ringbuffer::RingBuffer(2, sizeof(mag_report));
-
-	if (_reports == nullptr) {
-		goto out;
-	}
-
-	//reset device configuration
-	reset();
-
-
-	ret = OK;
-	//sensor is ok but not calibrated
-	_sensor_ok = true;
-out:
-	return ret;
+	return 0;
 }
-
-
-ssize_t
-POZYX::read(struct file *filp, char *buffer, size_t buflen)
-{
-	//unsigned count = buflen;
-	int ret = 0;
-	return ret;
-}
-
-int
-POZYX::ioctl(struct file *filp, int cmd, unsigned long arg)
-{
-	unsigned dummy = arg;
-
-	switch (cmd) {
-		case SENSORIOCSPOLLRATE: {
-			switch(arg){
-				case SENSOR_POLLRATE_MANUAL: {
-					stop();
-					_measure_ticks = 0;
-					return OK;
-				}
-				case SENSOR_POLLRATE_EXTERNAL:
-				case 0:
-					return -EINVAL;
-				case SENSOR_POLLRATE_MAX:
-				case SENSOR_POLLRATE_DEFAULT: {
-					bool want_start = (_measure_ticks == 0);
-					_measure_ticks = USEC2TICK(POZYX_CONVERSION_INTERVAL);
-					if (want_start) {
-						start();
-					}
-					return OK;
-				}
-				default: {
-					bool want_start = (_measure_ticks == 0);
-					unsigned ticks = USEC2TICK(400000 / arg);
-					if (ticks < USEC2TICK(POZYX_CONVERSION_INTERVAL)) {
-						return -EINVAL;
-					}
-					_measure_ticks = ticks;
-					if (want_start) {
-						start();
-					}
-					return OK;
-				}
-			}
-		}
-		case SENSORIOCGPOLLRATE: {
-			if (_measure_ticks == 0) {
-				return SENSOR_POLLRATE_MANUAL;
-			}
-			return 400000 / TICK2USEC(_measure_ticks);
-		}
-		case SENSORIOCSQUEUEDEPTH: {
-			if ((arg<1) || (arg >100)) {
-				return -EINVAL;
-			}
-			irqstate_t flags = px4_enter_critical_section();
-			if(!_reports->resize(arg)) {
-				px4_leave_critical_section(flags);
-				return -ENOMEM;
-			}
-			px4_leave_critical_section(flags);
-			return OK;
-		}
-		case SENSORIOCGQUEUEDEPTH: 
-			return _reports->size();
-		case SENSORIOCRESET:
-			return reset();
-		case MAGIOCSSAMPLERATE:
-			return ioctl(filp, SENSORIOCSPOLLRATE,arg);
-		case MAGIOCGSAMPLERATE:
-			return 400000 / TICK2USEC(_measure_ticks);
-		case MAGIOCGEXTERNAL:
-			DEVICE_DEBUG("MAGIOCGEXTERNAL in main driver");
-			return _interface->ioctl(cmd, dummy);
-		case DEVIOCGDEVICEID:
-			return _interface->ioctl(cmd, dummy);
-
-		default:
-			return CDev::ioctl(filp, cmd, arg);
-	}
-}
-
 
 void
 POZYX::start()
 {
-	_reports->flush();
-
-	work_queue(HPWORK, &_work, (worker_t)&POZYX::cycle_trampoline, this, 1);
+	return 0;
 }
 
 void
 POZYX::stop()
 {
-	work_cancel(HPWORK, &_work);
+	return 0;
 }
 
 int
@@ -320,45 +241,59 @@ POZYX::reset()
 }
 
 void
-POZYX::cycle_trampoline(void *arg)
-{
-	POZYX *dev = (POZYX *)arg;
-
-	dev->cycle();
-}
-
-void
 POZYX::cycle()
 {
-	/*
-	if (OK != collect()) {
-		DEVICE_DEBUG("collection error");
-		start();
-		return;
-	}
-
-	if(_measure_ticks > USEC2TICK(POZYX_CONVERSION_INTERVAL)) {
-		work_queue(HPWORK,
-			&_work,
-			(worker_t)&POZYX::cycle_trampoline,
-			this,
-			_measure_ticks - USEC2TICK(POZYX_CONVERSION_INTERVAL));
-
-		return;
-	}
-
-	if (OK != measure()) {
-		DEVICE_DEBUG("measure_error");
-	}
-
-	work_queue(HPWORK,
-		&_work,
-		(worker_t)&POZYX::cycle_trampoline,
-		this,
-		USEC2TICK(POZYX_CONVERSION_INTERVAL));
-		*/
+	return 0;
 }
 
+void POZYX::IRQ()
+{  
+  _interrupt = 1;  
+}
+
+boolean POZYX::waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
+{
+  long timer = millis();
+  int status;
+  
+  // stay in this loop until the event interrupt flag is set or until the the timer runs out
+  while(millis()-timer < timeout_ms)
+  {
+    // in polling mode, we insert a small delay such that we don't swamp the i2c bus
+    if( _mode == MODE_POLLING ){
+      delay(1);
+    }
+    
+    if( (_interrupt == 1) || (_mode == MODE_POLLING))
+    { 
+      _interrupt = 0;
+      
+      // Read out the interrupt status register. After reading from this register, pozyx automatically clears the interrupt flags.
+      uint8_t interrupt_status = 0;
+      status = regRead(POZYX_INT_STATUS, &interrupt_status, 1);
+      if((interrupt_status & interrupt_flag) && status == POZYX_SUCCESS)
+      {
+        // one of the interrupts we were waiting for arrived!
+        if(interrupt != NULL)
+          *interrupt = interrupt_status;
+        return true;
+      }
+    }     
+  } 
+  // too bad, pozyx didn't respond 
+  // 1) pozyx can select from two pins to generate interrupts, make sure the correct pin is connected with the attachInterrupt() function.
+  // 2) make sure the interrupt we are waiting for is enabled in the POZYX_INT_MASK register)
+  return false;  
+}
+
+boolean POZYX::waitForFlag_safe(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
+{
+  int tmp = _mode;
+  _mode = MODE_POLLING;
+  boolean result = waitForFlag(interrupt_flag, timeout_ms, interrupt);
+  _mode = tmp;
+  return result;
+}
 
 int 
 POZYX::regWrite(uint8_t reg_address, uint8_t *pData, int size)
@@ -383,7 +318,10 @@ POZYX::regWrite(uint8_t reg_address, uint8_t *pData, int size)
   
   return status;
 }
-
+POZYX::remoteRegWrite(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size)
+{
+	return 0;
+}
 
 /**
   * Reads a number of bytes from the specified pozyx register address using I2C
@@ -414,6 +352,11 @@ POZYX::regRead(uint8_t reg_address, uint8_t *pData, int size)
   
   return status;
 }
+int
+POZYX::remoteRegRead(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size)
+{
+	return 0;
+}
 /**
   * Call a register function using i2c with given parameters, the data from the function is stored in pData
   */
@@ -438,18 +381,9 @@ POZYX::regFunction(uint8_t reg_address, uint8_t *params, int param_size, uint8_t
   memcpy(&status, &params, 1);
   return status;
 }
-
-
-void
-POZYX::print_info()
+POZYX::remoteRegFunction(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size)
 {
-	perf_print_counter(_sample_perf);
-	perf_print_counter(_comms_errors);
-	perf_print_counter(_buffer_overflows);
-	printf("poll interval: %u ticks\n", _measure_ticks);
-	//printf("output (%.2f %.2f %.2f)\n", (double)_last_report.x, (double)_last_report.y, (double)_last_report.z);
-	printf("some more stuff");
-	_reports->print_info("report queue");
+	return 0;
 }
 
 namespace pozyx
@@ -474,22 +408,21 @@ namespace pozyx
 		
 	#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
 
-	void 	start(enum POZYX_BUS busid, enum Rotation rotation);
-	bool 	start_bus(struct pozyx_bus_option &bus, enum Rotation rotation);
+	void 	start(enum POZYX_BUS busid);
+	bool 	start_bus(struct pozyx_bus_option &bus);
 	struct 	pozyx_bus_option &find_bus(enum POZYX_BUS busid);
 	void 	test(enum POZYX_BUS busid);
 	void	reset(enum POZYX_BUS busid);
 	void	getposition(enum POZYX_BUS busid);
 	int 	info(enum POZYX_BUS busid, bool enable);
 	int 	calibrate(enum POZYX_BUS busid);
-	int 	temp_enable(POZYX_BUS busid, bool enable);
 	void	usage();
 
 	int		begin(bool print_result = false, int mode = MODE_POLLING, int interrupts = POZYX_INT_MASK_ALL);
 
 	//start driver for specific bus option
 	bool 
-	start_bus(struct pozyx_bus_option &bus, enum Rotation rotation)
+	start_bus(struct pozyx_bus_option &bus)
 	{
 		if (bus.dev != nullptr) {
 			errx(1, "bus option already started");
@@ -503,7 +436,7 @@ namespace pozyx
 			return false;
 		}
 
-		bus.dev = new POZYX(interface, bus.devpath, rotation);
+		bus.dev = new POZYX(interface, bus.devpath);
 
 		if (bus.dev != nullptr && OK != bus.dev->init()) {
 			delete bus.dev;
@@ -529,7 +462,7 @@ namespace pozyx
 
 	//start the driver
 	void
-	start(enum POZYX_BUS busid, enum Rotation rotation)
+	start(enum POZYX_BUS busid)
 	{
 		bool started = false;
 
@@ -542,7 +475,7 @@ namespace pozyx
 				continue;
 			}
 
-			started |= start_bus(bus_options[i], rotation);
+			started |= start_bus(bus_options[i]);
 		}
 		if (!started) {
 			exit(1);
@@ -564,7 +497,7 @@ namespace pozyx
 	int 
 	begin(bool print_result, int mode, int interrupts)
 	{
-		  start(POZYX_BUS_ALL, ROTATION_NONE);	
+		  start(POZYX_BUS_ALL);	
 
 		  int status = POZYX_SUCCESS;
 		  struct pozyx_bus_option &bus = find_bus(POZYX_BUS_ALL);
@@ -583,6 +516,8 @@ namespace pozyx
 
 		  // wait a bit until the pozyx board is up and running
 		  sleep(0.250);
+
+		  _mode = mode;
 		  		  
 		  uint8_t whoami, selftest;  
 		  uint8_t regs[3];
@@ -592,16 +527,16 @@ namespace pozyx
 		    return POZYX_FAILURE;
 		  }  
 		  whoami = regs[0];
-		  uint8_t fw_version = regs[1];
-		  uint8_t hw_version = regs[2]; 
+		  _fw_version = regs[1];
+		  _hw_version = regs[2]; 
 
 		  if(print_result){
 		    PX4_INFO("WhoAmI: 0x%x",whoami);
-		    PX4_INFO("FW ver.: v%d.%d",((fw_version&0xF0)>>4),(fw_version&0x0F));
+		    PX4_INFO("FW ver.: v%d.%d",((_fw_version&0xF0)>>4),(_fw_version&0x0F));
 		    if(fw_version < 0x10) {
 		      PX4_INFO("please upgrade");
 		    }
-		    PX4_INFO("HW ver.: v%d.%d", ((hw_version&0xE0)>>5),(hw_version&0x1F));
+		    PX4_INFO("HW ver.: v%d.%d", ((_hw_version&0xE0)>>5),(_hw_version&0x1F));
 		  }
 		  // verify if the whoami is correct
 		  if(whoami != 0x43) {    
@@ -636,13 +571,13 @@ namespace pozyx
 	    	} 
 		  }
 
-		  if((hw_version & POZYX_TYPE) == POZYX_TAG)
+		  if((_hw_version & POZYX_TYPE) == POZYX_TAG)
 		  {
 		    // check if the uwb, pressure sensor, accelerometer, magnetometer and gyroscope are working
 		    if(selftest != 0b00111111) {
  		      status = POZYX_FAILURE;
 		    }
-		  }else if((hw_version & POZYX_TYPE) == POZYX_ANCHOR)
+		  }else if((_hw_version & POZYX_TYPE) == POZYX_ANCHOR)
 		  {
 		    // check if the uwb transceiver and pressure sensor are working
 		    if(selftest != 0b0011000) {    
@@ -760,20 +695,6 @@ namespace pozyx
 	void
 	reset(enum POZYX_BUS busid)
 	{
-		struct pozyx_bus_option &bus = find_bus(busid);
-		const char *path = bus.devpath;
-		int fd = open(path, O_RDONLY);
-
-		if (fd<0) {
-			err(1, "failed");
-		}
-
-		if (ioctl(fd,SENSORIOCRESET, 0) < 0) {
-			err(1, "driver reset failed");
-		}
-		if (ioctl(fd,SENSORIOCSPOLLRATE, SENSOR_POLLRATE_DEFAULT) < 0) {
-			err(1, "driver poll restart failed");
-		}
 		exit(0);
 	}
 
@@ -790,10 +711,7 @@ namespace pozyx
 	void
 	usage()
 	{
-		warnx("some warnings");
-		#if (PX4_I2C_BUS_ONBOARD || PX4_SPIDEV_HMC)
-		warnx(" -I only internal bus");
-		#endif
+		PX4_INFO("Give description of how to use pozyx from cmd line");
 	}
 
 } //namespace
@@ -804,12 +722,11 @@ pozyx_main(int argc, char *argv[])
 	
 	int ch;
 	enum POZYX_BUS busid = POZYX_BUS_ALL;
-	enum Rotation rotation = ROTATION_NONE;
 
 	while ((ch = getopt(argc, argv, "XISR:CT")) != EOF) {
 		switch (ch) {
 			case 'R':
-			rotation = (enum Rotation)atoi(optarg);
+			//rotation = (enum Rotation)atoi(optarg);
 			default:
 			pozyx::usage();
 			exit(0);
@@ -821,7 +738,7 @@ pozyx_main(int argc, char *argv[])
 
 	//start/load driver
 	if (!strcmp(verb, "start")) {
-		pozyx::start(busid, rotation);
+		pozyx::start(busid);
 		PX4_INFO("pozyx started");
 
 		exit(0);
