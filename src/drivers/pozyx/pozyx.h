@@ -128,17 +128,172 @@
 
 /* Macro's to test if registers are readable/writable */
 
-#define IS_REG_READABLE(x) 			 (((((x)>=0x0)&&((x)<0x7)) || (((x)>=0x10)&&((x)<0x12)) || (((x)>=0x15)&&((x)<0x21)) || (((x)>=0x22)&&((x)<0x24)) || (((x)>=0x27)&&((x)<0x2b)) || (((x)>=0x30)&&((x)<0x48)) || (((x)>=0x50)&&((x)<0x89)))?1:0) 
-#define IS_REG_WRITABLE(x) 			 (((((x)>=0x10)&&((x)<0x12)) || (((x)>=0x15)&&((x)<0x21)) || (((x)>=0x22)&&((x)<0x24)) || (((x)>=0x27)&&((x)<0x2b)) || (((x)>=0x30)&&((x)<0x3c)) || (((x)>=0x85)&&((x)<0x89)))?1:0) 
-#define IS_FUNCTIONCALL(x) 			 (((((x)>=0xb0)&&((x)<0xbc)) || (((x)>=0xc0)&&((x)<0xc9)))?1:0) 
+#define IS_REG_READABLE(x)       (((((x)<0x07)) || (((x)>=0x10)&&((x)<0x12)) || (((x)>=0x15)&&((x)<0x21)) || (((x)>=0x22)&&((x)<0x24)) || (((x)>=0x27)&&((x)<0x2b)) || (((x)>=0x30)&&((x)<0x48)) || (((x)>=0x50)&&((x)<0x89)))?1:0) 
+#define IS_REG_WRITABLE(x) 		 (((((x)>=0x10)&&((x)<0x12)) || (((x)>=0x15)&&((x)<0x21)) || (((x)>=0x22)&&((x)<0x24)) || (((x)>=0x27)&&((x)<0x2b)) || (((x)>=0x30)&&((x)<0x3c)) || (((x)>=0x85)&&((x)<0x89)))?1:0) 
+#define IS_FUNCTIONCALL(x) 		 (((((x)>=0xb0)&&((x)<0xbc)) || (((x)>=0xc0)&&((x)<0xc9)))?1:0) 
 
 /* End of auto generated defines */ 
 
 
-#define DRV_POS_DEVTYPE_POZYX  		0x40
-#define POZYX_WHOAMI_EXPECTED		0x43
+/* Bit mask for POZYX_ST_RESULT */
+#define POZYX_ST_RESULT_ACC       0x01
+#define POZYX_ST_RESULT_MAGN      0x02
+#define POZYX_ST_RESULT_GYR       0x04
+#define POZYX_ST_RESULT_MCU       0x08
+#define POZYX_ST_RESULT_PRES      0x10
+#define POZYX_ST_RESULT_UWB       0x20
 
-#define POZYX_CONVERSION_INTERVAL (400000 / 150)
+/* Bit mask for POZYX_INT_STATUS */
+#define POZYX_INT_STATUS_ERR      0x01
+#define POZYX_INT_STATUS_POS      0x02
+#define POZYX_INT_STATUS_IMU      0x04
+#define POZYX_INT_STATUS_RX_DATA    0x08
+#define POZYX_INT_STATUS_FUNC     0x10
+
+/* Bit mask for POZYX_INT_MASK */
+#define POZYX_INT_MASK_ERR        0x01
+#define POZYX_INT_MASK_POS        0x02
+#define POZYX_INT_MASK_IMU        0x04
+#define POZYX_INT_MASK_RX_DATA      0x08
+#define POZYX_INT_MASK_FUNC       0x10
+#define POZYX_INT_MASK_TDMA       0x40
+#define POZYX_INT_MASK_PIN        0x80
+
+/* Bit mask for POZYX_POS_ALG */
+#define POZYX_POS_ALG_UWB_ONLY      0x00
+#define POZYX_POS_ALG_TRACKING      0x01
+#define POZYX_POS_ALG_LS        0x02
+
+/* Bit mask for POZYX_RANGE_PROTOCOL */
+#define POZYX_RANGE_PROTOCOL_SDS_TWR  0x00
+#define POZYX_RANGE_PROTOCOL_TWR    0x01
+#define POZYX_RANGE_PROTOCOL_TEST   0x02
+
+/* Bit mask for POZYX_LED_CTRL */
+#define POZYX_LED_CTRL_LED1       0x01
+#define POZYX_LED_CTRL_LED2       0x02
+#define POZYX_LED_CTRL_LED3       0x04
+#define POZYX_LED_CTRL_LED4       0x08
+
+
+
+#define POZYX_TYPE                                      0xE0   
+#define POZYX_ANCHOR                                    0x00
+#define POZYX_TAG                                       0x20 
+
+#define MAX_BUF_SIZE                                    100
+
+
+#define POZYX_INT_MASK_ALL          0x1F
+#define POZYX_DELAY_LOCAL_WRITE     1
+#define POZYX_DELAY_LOCAL_FUNCTION  5
+#define POZYX_DELAY_REMOTE_WRITE    5
+#define POZYX_DELAY_REMOTE_FUNCTION 10
+#define POZYX_DELAY_INTERRUPT       100
+#define POZYX_DELAY_CALIBRATION     1000  
+#define POZYX_FAILURE               0x0
+#define POZYX_SUCCESS               0x1 
+#define POZYX_TIMEOUT               0x8
+#define POZYX_3D                    3  
+#define POZYX_2D                    2
+#define POZYX_2_5D                  1 
+#define POZYX_INT_PIN0              0x0
+#define POZYX_INT_PIN1              0x1
+
+
+#define POZYX_LED_CTRL_LEDRX       0x10
+#define POZYX_LED_CTRL_LEDTX       0x20
+
+#define POZYX_ANCHOR_MODE         0
+#define POZYX_TAG_MODE            1
+
+// The GPIO modes 
+#define POZYX_GPIO_DIGITAL_INPUT    0
+#define POZYX_GPIO_PUSHPULL         1
+#define POZYX_GPIO_OPENDRAIN        1
+
+// The GPIO pull resistor configuration
+#define POZYX_GPIO_NOPULL           0
+#define POZYX_GPIO_PULLUP           1
+#define POZYX_GPIO_PULLDOWN         2
+
+// anchor selection modes
+#define POZYX_ANCHOR_SEL_MANUAL     0  
+#define POZYX_ANCHOR_SEL_AUTO       1
+
+// discovery options
+#define POZYX_DISCOVERY_ANCHORS_ONLY    0
+#define POZYX_DISCOVERY_TAGS_ONLY       1
+#define POZYX_DISCOVERY_ALL_DEVICES     2
+
+
+// how to intercept pozyx events: by polling or by interrupts
+#define MODE_POLLING              0
+#define MODE_INTERRUPT            1
+
+// Division factors for converting the raw register values to meaningful physical quantities
+#define POZYX_POS_DIV_MM               1.0f   
+#define POZYX_PRESS_DIV_PA             1000.0f
+#define POZYX_ACCEL_DIV_MG             1.0f
+#define POZYX_GYRO_DIV_DPS             16.0f
+#define POZYX_MAG_DIV_UT               16.0f
+#define POZYX_EULER_DIV_DEG            16.0f
+#define POZYX_QUAT_DIV                 16384.0f
+#define POZYX_TEMP_DIV_CELSIUS         1.0f    
+
+// error-code defintions
+#define POZYX_ERROR_NONE                  0x00  
+#define POZYX_ERROR_I2C_WRITE             0x01  
+#define POZYX_ERROR_I2C_CMDFULL           0x02  
+#define POZYX_ERROR_ANCHOR_ADD            0x03  
+#define POZYX_ERROR_COMM_QUEUE_FULL       0x04  
+#define POZYX_ERROR_I2C_READ              0x05  
+#define POZYX_ERROR_UWB_CONFIG            0x06  
+#define POZYX_ERROR_OPERATION_QUEUE_FULL  0x07  
+#define POZYX_ERROR_TDMA                  0xA0  
+#define POZYX_ERROR_STARTUP_BUSFAULT      0x08  
+#define POZYX_ERROR_FLASH_INVALID         0x09  
+#define POZYX_ERROR_NOT_ENOUGH_ANCHORS    0x0A 
+#define POZYX_ERROR_DISCOVERY             0X0B
+#define POZYX_ERROR_CALIBRATION           0x0C
+#define POZYX_ERROR_FUNC_PARAM            0x0D
+#define POZYX_ERROR_ANCHOR_NOT_FOUND      0x0E
+#define POZYX_ERROR_FLASH         0x0F
+#define POZYX_ERROR_MEMORY          0x10
+#define POZYX_ERROR_RANGING         0x11
+#define POZYX_ERROR_RTIMEOUT1       0x12
+#define POZYX_ERROR_RTIMEOUT2       0x13
+#define POZYX_ERROR_TXLATE          0x14
+#define POZYX_ERROR_UWB_BUSY        0x15
+#define POZYX_ERROR_POSALG          0x16
+#define POZYX_ERROR_NOACK         0x17
+#define POZYX_ERROR_SNIFF_OVERFLOW      0xE0
+#define POZYX_ERROR_NO_PPS          0xF0
+#define POZYX_ERROR_NEW_TASK        0xF1
+#define POZYX_ERROR_UNRECDEV        0xFE
+#define POZYX_ERROR_GENERAL              0xFF
+
+// flash configuration types
+#define POZYX_FLASH_REGS                  1
+#define POZYX_FLASH_ANCHOR_IDS            2     
+#define POZYX_FLASH_NETWORK               3  
+
+
+// possible interrupt pin configuration settings
+#define PIN_MODE_PUSHPULL                 0
+#define PIN_ACTIVE_LOW                    0
+#define PIN_ACTIVE_HIGH                   1
+
+
+
+//additions to pozyx provided definitions
+
+#define DRV_POS_DEVTYPE_POZYX  			0x40
+#define POZYX_WHOAMI_EXPECTED			0x43
+
+#define POZYX_CONVERSION_INTERVAL 		(400000 / 150)
+#define BUFFER_LENGTH 					32
+
 
 /* interface factory */
 extern device::Device *POZYX_I2C_interface(int bus);

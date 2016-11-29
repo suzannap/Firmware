@@ -87,12 +87,11 @@ public:
 	*/
 	void			print_info();
 	/*write a register*/
-	int 			write_reg(uint8_t reg, uint8_t val, uint8_t len);
+	int 			regWrite(uint8_t reg_address, uint8_t *pData, int size);
 	/*read a register*/
-	int 		 	read_reg(uint8_t reg, uint8_t &val, uint8_t len);
-	int 		 	read_reg_32(uint8_t reg, uint32_t &val);
+	int 			regRead(uint8_t reg_address, uint8_t *pData, int size);
 	//*function call*/
-	int 			function_reg(uint8_t reg, uint8_t &val, uint8_t len);
+	int 			regFunction(uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size);
 
 protected:
 	Device 			*_interface;
@@ -218,12 +217,8 @@ out:
 ssize_t
 POZYX::read(struct file *filp, char *buffer, size_t buflen)
 {
-	PX4_INFO("pozyx read attempted");
 	//unsigned count = buflen;
 	int ret = 0;
-
-
-
 	return ret;
 }
 
@@ -364,35 +359,86 @@ POZYX::cycle()
 		*/
 }
 
-int
-POZYX::write_reg(uint8_t reg, uint8_t val, uint8_t len)
-{
-	uint8_t buf = val;
-	return _interface->write(reg, &buf, len);
+
+int 
+POZYX::regWrite(uint8_t reg_address, uint8_t *pData, int size)
+{  
+   
+  if(!IS_REG_WRITABLE(reg_address))
+    return POZYX_FAILURE;
+  
+  int n_runs = ceil((float)size / BUFFER_LENGTH);
+  int i;
+  int status = 1;
+    
+  for(i=0; i<n_runs; i++)
+  {
+    int offset = i*BUFFER_LENGTH;
+    if(i+1 != n_runs){
+    	status = _interface->write(reg_address+offset, pData+offset, BUFFER_LENGTH);    
+    }else{
+    	status = _interface->write(reg_address+offset, pData+offset, size-offset);    
+    }    
+  }
+  
+  return status;
 }
 
-int
-POZYX::read_reg(uint8_t reg, uint8_t &val, uint8_t len)
-{
-	uint8_t buf = val;
-	int ret = _interface->read(reg, &buf, len);
-	val = buf;
-	return ret;
+
+/**
+  * Reads a number of bytes from the specified pozyx register address using I2C
+  */
+int 
+POZYX::regRead(uint8_t reg_address, uint8_t *pData, int size)
+{  
+  if(!IS_REG_READABLE(reg_address)){
+    return POZYX_FAILURE;
+  }
+  
+  int n_runs = ceil((float)size / BUFFER_LENGTH);
+  int i;
+  int status = 1;
+  uint8_t reg;
+    
+  for(i=0; i<n_runs; i++)
+  {
+    int offset = i*BUFFER_LENGTH;
+    reg = reg_address+offset;    
+    
+    if(i+1 != n_runs){  
+    	status = _interface->read(reg, pData+offset, BUFFER_LENGTH);    
+    }else{      
+    	status = _interface->read(reg, pData+offset, size-offset);    
+    }    
+  }
+  
+  return status;
 }
-int
-POZYX::read_reg_32(uint8_t reg, uint32_t &val)
+/**
+  * Call a register function using i2c with given parameters, the data from the function is stored in pData
+  */
+int 
+POZYX::regFunction(uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size)
 {
-	return _interface->read(reg, (uint8_t *)&val, 4);
+
+  if(!IS_FUNCTIONCALL(reg_address)){
+    	return POZYX_FAILURE;
+	}	
+
+  uint8_t status;
+  
+   // first write some data with i2c and then read some data
+  status = _interface->write(reg_address, params, param_size);
+  if(status == POZYX_FAILURE){
+    return status;    
+	}
+  //copy returned data (which has been written to paramdata) to specified address  
+  memcpy(&pData, &params, size);
+  // the first byte that a function returns is always it's success indicator, so we simply pass this through
+  memcpy(&status, &params, 1);
+  return status;
 }
 
-int
-POZYX::function_reg(uint8_t reg, uint8_t &val, uint8_t len)
-{
-	uint8_t buf = val;
-	int ret = _interface->write(reg, &buf, len);
-	val = buf;
-	return ret;
-}
 
 void
 POZYX::print_info()
@@ -426,7 +472,7 @@ namespace pozyx
 	};
 
 		
-		#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
+	#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
 
 	void 	start(enum POZYX_BUS busid, enum Rotation rotation);
 	bool 	start_bus(struct pozyx_bus_option &bus, enum Rotation rotation);
@@ -438,6 +484,8 @@ namespace pozyx
 	int 	calibrate(enum POZYX_BUS busid);
 	int 	temp_enable(POZYX_BUS busid, bool enable);
 	void	usage();
+
+	int		begin(bool print_result = false, int mode = MODE_POLLING, int interrupts = POZYX_INT_MASK_ALL);
 
 	//start driver for specific bus option
 	bool 
@@ -513,6 +561,126 @@ namespace pozyx
 		errx(1, "bus %u not started", (unsigned)busid);
 	}
 
+	int 
+	begin(bool print_result, int mode, int interrupts)
+	{
+		  start(POZYX_BUS_ALL, ROTATION_NONE);	
+
+		  int status = POZYX_SUCCESS;
+		  struct pozyx_bus_option &bus = find_bus(POZYX_BUS_ALL);
+
+		  if(print_result){
+		    PX4_INFO("Pozyx Shield");
+		    PX4_INFO("------------");
+		  }
+
+		  // check if the mode parameter is valid
+		  if((mode != MODE_POLLING) && (mode != MODE_INTERRUPT)) {
+		    return POZYX_FAILURE;
+		  }
+		  
+
+
+		  // wait a bit until the pozyx board is up and running
+		  sleep(0.250);
+		  		  
+		  uint8_t whoami, selftest;  
+		  uint8_t regs[3];
+		  regs[2] = 0x12;
+		  // we read out the first 3 register values: who_am_i, firmware_version and harware version, respectively.
+		  if(bus.dev->regRead(POZYX_WHO_AM_I, regs, 3) != OK){
+		    return POZYX_FAILURE;
+		  }  
+		  whoami = regs[0];
+		  uint8_t fw_version = regs[1];
+		  uint8_t hw_version = regs[2]; 
+
+		  if(print_result){
+		    PX4_INFO("WhoAmI: 0x%x",whoami);
+		    PX4_INFO("FW ver.: v%d.%d",((fw_version&0xF0)>>4),(fw_version&0x0F));
+		    if(fw_version < 0x10) {
+		      PX4_INFO("please upgrade");
+		    }
+		    PX4_INFO("HW ver.: v%d.%d", ((hw_version&0xE0)>>5),(hw_version&0x1F));
+		  }
+		  // verify if the whoami is correct
+		  if(whoami != 0x43) {    
+		    // possibly the pozyx is not connected right. Also make sure the jumper of the boot pins is present.
+		    status = POZYX_FAILURE;
+		  }
+		  
+		  // readout the selftest registers to validate the proper functioning of pozyx
+		  if(bus.dev->regRead(POZYX_ST_RESULT, &selftest, 1) != OK){
+		    return POZYX_FAILURE;
+		  } 
+
+		  if(print_result){
+		    PX4_INFO("Self Test: 0x%x", selftest);
+	       	if ((selftest & POZYX_ST_RESULT_ACC) != POZYX_ST_RESULT_ACC){
+	    		PX4_INFO("Self Test: Accelerometer failed");
+	    	}    
+	    	if ((selftest & POZYX_ST_RESULT_MAGN) != POZYX_ST_RESULT_MAGN){
+	    		PX4_INFO("Self Test: Magnetometer failed");
+	    	}    
+	    	if ((selftest & POZYX_ST_RESULT_GYR) != POZYX_ST_RESULT_GYR){
+	    		PX4_INFO("Self Test: Gyroscope failed");
+	    	}    
+	    	if ((selftest & POZYX_ST_RESULT_MCU) != POZYX_ST_RESULT_MCU){
+	    		PX4_INFO("Self Test: IMU Microcontroller failed");
+	    	}    
+	    	if ((selftest & POZYX_ST_RESULT_PRES) != POZYX_ST_RESULT_PRES){
+	    		PX4_INFO("Self Test: Pressure Sensor failed");
+	    	}   
+	    	if ((selftest & POZYX_ST_RESULT_UWB) != POZYX_ST_RESULT_UWB){
+	    		PX4_INFO("Self Test: USB Transciever failed");
+	    	} 
+		  }
+
+		  if((hw_version & POZYX_TYPE) == POZYX_TAG)
+		  {
+		    // check if the uwb, pressure sensor, accelerometer, magnetometer and gyroscope are working
+		    if(selftest != 0b00111111) {
+ 		      status = POZYX_FAILURE;
+		    }
+		  }else if((hw_version & POZYX_TYPE) == POZYX_ANCHOR)
+		  {
+		    // check if the uwb transceiver and pressure sensor are working
+		    if(selftest != 0b0011000) {    
+		      status = POZYX_FAILURE;
+		    }
+		    return status;
+		  }
+
+		if(mode == MODE_INTERRUPT){
+			/*
+		    // set the function that must be called upon an interrupt
+		    // put your main code here, to run repeatedly:
+			#if defined(__SAMD21G18A__) || defined(__ATSAMD21G18A__)
+			    // Arduino Tian
+			    int tian_interrupt_pin = interrupt_pin;
+			    attachInterrupt(interrupt_pin+2, IRQ, RISING);
+			#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+			    // Arduino UNO, Mega
+			    attachInterrupt(interrupt_pin, IRQ, RISING);
+			#else
+			    PX4_INFO("This is not a board supported by Pozyx, interrupts may not work");
+			    attachInterrupt(interrupt_pin, IRQ, RISING);
+			#endif
+			    // use interrupt as provided and initiate the interrupt mask
+			    uint8_t int_mask = interrupts;
+			    configInterruptPin(5+interrupt_pin, PIN_MODE_PUSHPULL, PIN_ACTIVE_LOW, 0);
+
+			    if (regWrite(POZYX_INT_MASK, &int_mask, 1) == POZYX_FAILURE){
+			      return POZYX_FAILURE;
+			    }
+		 	*/
+		  }   
+		  
+		  // all done
+		  sleep(POZYX_DELAY_LOCAL_WRITE/1000);
+		  return status;
+	}
+
 	//basic functional tests
 	void
 	test(enum POZYX_BUS busid)
@@ -528,7 +696,7 @@ namespace pozyx
 			err(1, "%s open failed (try 'pozyx start')", path);			
 		}
 		uint8_t whoami = 0;
-		testread = bus.dev->read_reg(POZYX_WHO_AM_I, whoami, 1);
+		testread = bus.dev->regRead(POZYX_WHO_AM_I, &whoami, 1);
 		PX4_INFO("value of whoami is: 0x%x", whoami);
 
 		if (testread != OK) {
@@ -546,14 +714,14 @@ namespace pozyx
 		uint8_t funcbuf[100];
 		funcbuf[0] = 0x44;
 
-		testread = bus.dev->function_reg(POZYX_LED_CTRL, funcbuf[0], 1);
+		bus.dev->regFunction(POZYX_LED_CTRL, (uint8_t *)&funcbuf[0], 1, (uint8_t *)&funcbuf[0], 1);
 		if (funcbuf[0] != 1) {
 			err(1, "Function test failed");
 		}
 		PX4_INFO("LED3 turned On... ");
-		sleep(3);
+		sleep(2);
 		funcbuf[0] = 0x40;
-		testread = bus.dev->function_reg(POZYX_LED_CTRL, funcbuf[0], 1);
+		bus.dev->regFunction(POZYX_LED_CTRL, (uint8_t *)&funcbuf[0], 1, (uint8_t *)&funcbuf[0], 1);
 		if (funcbuf[0] != 1) {
 			err(1, "Function test failed");
 		}
@@ -562,6 +730,8 @@ namespace pozyx
 		errx(0, "PASS");
 	}
 
+
+
 	void
 	getposition(enum POZYX_BUS busid)
 	{
@@ -569,9 +739,9 @@ namespace pozyx
 		uint32_t coordinates[3];
 
 
-		bus.dev->read_reg_32(POZYX_POS_X, coordinates[0]);
-		bus.dev->read_reg_32(POZYX_POS_Y, coordinates[1]);
-		bus.dev->read_reg_32(POZYX_POS_Z, coordinates[2]);
+		bus.dev->regRead(POZYX_POS_X, (uint8_t *)&coordinates[0], 4);
+		bus.dev->regRead(POZYX_POS_Y, (uint8_t *)&coordinates[1], 4);
+		bus.dev->regRead(POZYX_POS_Z, (uint8_t *)&coordinates[2], 4);
 
 		PX4_INFO("Current position: %d   %d   %d", coordinates[0], coordinates[1], coordinates[2]);
 		
@@ -665,13 +835,19 @@ pozyx_main(int argc, char *argv[])
 	}
 
 
-	//reset driver
+	//fetch positions
 	if (!strcmp(verb, "getposition")) {
 		pozyx::getposition(busid);
 		exit(0);
 	}
 
+	//pozyx begin
+	if (!strcmp(verb, "begin")) {
+		pozyx::begin(true, MODE_POLLING, POZYX_INT_MASK_ALL);
+		exit(0);
+	}
 
-	errx(1, "unrecognized command, try start, test, reset");
+
+	errx(1, "unrecognized command, try start, test, getposition, begin");
 
 }
