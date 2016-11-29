@@ -44,6 +44,7 @@
 #include <drivers/drv_device.h>
 
 #include <uORB/uORB.h>
+#include <uORB/topics/att_pos_mocap.h>
 
 #include <float.h>
 #include <getopt.h>
@@ -89,6 +90,7 @@ public:
 	int 			write_reg(uint8_t reg, uint8_t val, uint8_t len);
 	/*read a register*/
 	int 		 	read_reg(uint8_t reg, uint8_t &val, uint8_t len);
+	int 		 	read_reg_32(uint8_t reg, uint32_t &val);
 	//*function call*/
 	int 			function_reg(uint8_t reg, uint8_t &val, uint8_t len);
 
@@ -377,6 +379,11 @@ POZYX::read_reg(uint8_t reg, uint8_t &val, uint8_t len)
 	val = buf;
 	return ret;
 }
+int
+POZYX::read_reg_32(uint8_t reg, uint32_t &val)
+{
+	return _interface->read(reg, (uint8_t *)&val, 4);
+}
 
 int
 POZYX::function_reg(uint8_t reg, uint8_t &val, uint8_t len)
@@ -386,7 +393,6 @@ POZYX::function_reg(uint8_t reg, uint8_t &val, uint8_t len)
 	val = buf;
 	return ret;
 }
-
 
 void
 POZYX::print_info()
@@ -427,6 +433,7 @@ namespace pozyx
 	struct 	pozyx_bus_option &find_bus(enum POZYX_BUS busid);
 	void 	test(enum POZYX_BUS busid);
 	void	reset(enum POZYX_BUS busid);
+	void	getposition(enum POZYX_BUS busid);
 	int 	info(enum POZYX_BUS busid, bool enable);
 	int 	calibrate(enum POZYX_BUS busid);
 	int 	temp_enable(POZYX_BUS busid, bool enable);
@@ -555,13 +562,36 @@ namespace pozyx
 		errx(0, "PASS");
 	}
 
+	void
+	getposition(enum POZYX_BUS busid)
+	{
+		struct pozyx_bus_option &bus = find_bus(busid);
+		uint32_t coordinates[3];
+
+
+		bus.dev->read_reg_32(POZYX_POS_X, coordinates[0]);
+		bus.dev->read_reg_32(POZYX_POS_Y, coordinates[1]);
+		bus.dev->read_reg_32(POZYX_POS_Z, coordinates[2]);
+
+		PX4_INFO("Current position: %d   %d   %d", coordinates[0], coordinates[1], coordinates[2]);
+		
+		struct att_pos_mocap_s att;
+		memset(&att, 0, sizeof(att));
+		orb_advert_t att_pub = orb_advertise(ORB_ID(att_pos_mocap), &att);
+		att.x = coordinates[0];
+		att.y = coordinates[1];
+		att.z = coordinates[2];
+
+		orb_publish(ORB_ID(att_pos_mocap), att_pub, &att);
+		
+	}
+
 
 	void
 	reset(enum POZYX_BUS busid)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
 		const char *path = bus.devpath;
-
 		int fd = open(path, O_RDONLY);
 
 		if (fd<0) {
@@ -636,9 +666,8 @@ pozyx_main(int argc, char *argv[])
 
 
 	//reset driver
-	if (!strcmp(verb, "reset")) {
-		//pozyx::reset(busid);
-		PX4_INFO("debug you tried to reset");
+	if (!strcmp(verb, "getposition")) {
+		pozyx::getposition(busid);
 		exit(0);
 	}
 
