@@ -7,9 +7,6 @@
 
 #include "pozyx.h"
 
-extern "C" {
-  #include "pozyx_definitions.h"
-}
 
 int PozyxClass::getWhoAmI(uint8_t *whoami , uint16_t remote_id)
 {
@@ -411,7 +408,7 @@ int PozyxClass::setUWBSettings(UWB_settings_t *UWB_settings, uint16_t remote_id)
   }  
 
   // afterwards, it is possible to set the gain to a custom value
-  if(UWB_settings->gain_db > 0.1){
+  if(UWB_settings->gain_db > 0.1f){
     status = setTxPower(UWB_settings->gain_db, remote_id);
   }else{
     getTxPower(&(UWB_settings->gain_db), remote_id);
@@ -453,7 +450,7 @@ int PozyxClass::setTxPower(float txgain_dB, uint16_t remote_id)
   assert(txgain_dB <= 33.5f);
 
   // convert to an int where one unit is 0.5dB
-  uint8_t doublegain_dB = (int)(2.0*txgain_dB + 0.5f);
+  uint8_t doublegain_dB = (int)(2.0f*txgain_dB + 0.5f);
   int status;
 
   if(remote_id == NULL){
@@ -508,11 +505,12 @@ int PozyxClass::setOperationMode(uint8_t mode, uint16_t remote_id)
   int status;
 
   if(remote_id == NULL){
-    return regWrite(POZYX_OPERATION_MODE, (uint8_t *) &mode, 1);
+    status = regWrite(POZYX_OPERATION_MODE, (uint8_t *) &mode, 1);
   }
   else{
-    return remoteRegWrite(remote_id, POZYX_OPERATION_MODE, (uint8_t *) &mode, 1);
+    status = remoteRegWrite(remote_id, POZYX_OPERATION_MODE, (uint8_t *) &mode, 1);
   }
+  return status;
 
 }
 
@@ -520,17 +518,20 @@ int PozyxClass::getSensorMode(uint8_t *sensor_mode, uint16_t remote_id)
 {
   assert(sensor_mode != NULL);
 
+  int status;
+
   if(remote_id == NULL){
-    return regRead(POZYX_SENSORS_MODE, (uint8_t *) sensor_mode, 1);
+    status = regRead(POZYX_SENSORS_MODE, (uint8_t *) sensor_mode, 1);
   }
   else{
-    return remoteRegRead(remote_id, POZYX_SENSORS_MODE, (uint8_t *) sensor_mode, 1);
+    status = remoteRegRead(remote_id, POZYX_SENSORS_MODE, (uint8_t *) sensor_mode, 1);
   }
+  return status;
 }
 
 int PozyxClass::setSensorMode(uint8_t sensor_mode, uint16_t remote_id)
 {
-  assert(sensor_mode >= 0);
+  //assert(sensor_mode >= 0);
   assert(sensor_mode <= 12);
 
   int status;
@@ -913,7 +914,6 @@ int PozyxClass::setGPIO(int gpio_num, uint8_t value, uint16_t remote_id)
   assert(gpio_num <= 4);
   assert( (value == 0) || (value == 1) );
 
-  int status = POZYX_FAILURE;
   uint8_t gpio_register = POZYX_GPIO1 + (gpio_num-1);
 
   if(remote_id == NULL){
@@ -1015,13 +1015,12 @@ String PozyxClass::getSystemError(uint16_t remote_id)
 }
 */
 
-int PozyxClass::setLed(int led_num, boolean state, uint16_t remote_id)
+int PozyxClass::setLed(int led_num, bool state, uint16_t remote_id)
 {
   assert(led_num >= 1);
   assert(led_num <= 4);
   assert( (state == true) || (state == false) );
 
-  int status;
   // the 4 MSB indicate which led we wish to control, the 4 LSB indicate the state of the leds
   uint8_t params = (0x1 << (led_num-1+4)) | (((uint8_t)state) << (led_num-1));  
   
@@ -1231,7 +1230,7 @@ int PozyxClass::getPositioningAnchorIds(uint16_t anchors[], int anchor_num, uint
   return status;
 }
 
-int PozyxClass::getDeviceIds(uint16_t devices[],int size, uint16_t remote_id)
+int PozyxClass::getDeviceIds(uint16_t devices[],uint8_t size, uint16_t remote_id)
 {
   assert(size > 0);
   // the limit on size is 20, however, due to the Arduino i2c library the limit depends on the i2c buffer size
@@ -1613,15 +1612,14 @@ int PozyxClass::clearConfiguration(uint16_t remote_id)
 
 int PozyxClass::getNumRegistersSaved(uint16_t remote_id)
 {
-  int status;
 
   uint8_t details[20];
   memset(details, 0, 20);
 
   if(remote_id == NULL){
-    status = regFunction(POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
+    regFunction(POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
   }else{
-    status = remoteRegFunction(remote_id, POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
+    remoteRegFunction(remote_id, POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
   }
 
   // the number of registers saved is equal to the number of bits set in the details array
@@ -1640,14 +1638,13 @@ int PozyxClass::getNumRegistersSaved(uint16_t remote_id)
 
 bool PozyxClass::isRegisterSaved(uint8_t regAddress, uint16_t remote_id)
 {
-  int status;
 
   uint8_t details[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
   if(remote_id == NULL){
-    status = regFunction(POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
+    regFunction(POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
   }else{
-    status = remoteRegFunction(remote_id, POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
+    remoteRegFunction(remote_id, POZYX_FLASH_DETAILS, NULL, 0, details, 20); 
   }
 
   // the register address is represented by a specific bit in the bitstring stored in details.
@@ -1658,7 +1655,7 @@ bool PozyxClass::isRegisterSaved(uint8_t regAddress, uint16_t remote_id)
 }
 
 ///////////////////////////////////////////////// ASSERTIONS /////////////////////////////////////
-
+/*
 #ifdef __ASSERT_USE_STDERR
 void __attribute__((weak)) __assert (const char *func, const char *file, int line, const char *failedexpr)
 {
@@ -1701,3 +1698,4 @@ void __attribute__((weak)) __assert_pozyx (const char *__func, const char *__fil
 }
 
 #endif
+*/
