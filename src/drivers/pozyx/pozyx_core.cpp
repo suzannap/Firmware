@@ -10,7 +10,6 @@
 #include <ctime>
 //#include <iostream>
 
-
     
 PozyxClass::PozyxClass(int bus) : 
     _mode(0),
@@ -19,6 +18,8 @@ PozyxClass::PozyxClass(int bus) :
     _fw_version(0),
     _interface(bus)
     {
+      PX4_INFO("debug 20");
+      sleep(1);
       //_interface = &POZYX_I2C_interface(bus);
     }
 
