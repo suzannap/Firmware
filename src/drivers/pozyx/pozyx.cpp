@@ -176,6 +176,7 @@ public:
 /** @}*/    
 protected:
 	Device 		*_interface;
+	//struct pozyx_bus_options _busid;
 	static int _mode;               // the mode of operation, can be MODE_INTERRUPT or MODE_POLLING
     static int _interrupt;          // variable to indicate that an interrupt has occured
 
@@ -205,7 +206,7 @@ POZYX::POZYX(device::Device *interface, const char *path) :
 	CDev("POZYX", path),
 	_interface(interface)
 {
-
+	//_busid = find_bus()
 }
 
 POZYX::~POZYX()
@@ -386,6 +387,10 @@ POZYX::remoteRegFunction(uint16_t destination, uint8_t reg_address, uint8_t *pDa
 	return 0;
 }
 
+
+
+
+/****************namespace**********************************************/
 namespace pozyx
 {
 	#ifdef ERROR
