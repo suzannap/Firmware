@@ -57,335 +57,6 @@
 //using namespace std;
 
 
-enum POZYX_BUS {
-	POZYX_BUS_ALL = 0,
-	POZYX_BUS_I2C_INTERNAL,
-	POZYX_BUS_I2C_EXTERNAL
-};
-
-/*define error (not defined in c++)*/
-#ifdef ERROR
-# undef ERROR
-#endif
-static const int ERROR = -1;
-
-#ifndef CONFIG_SCHED_WORKQUEUE
-# error This requires CONFIG_SCHED_WORKQUEUE.
-#endif
-
-
-class POZYX : public device::CDev
-{
-public:
-	POZYX(device::Device *interface, const char *path);
-	virtual ~POZYX();
-
-	virtual int 	init();
-	/**
-	* Diagnostics - print some basic information about the driver
-	*/
-	void 			IRQ();
-	bool 		    waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt);
-	bool 			waitForFlag_safe(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt);
-
-	void			print_info();
-	/*read/write local registers, and local function calls*/
-	int 			regWrite(uint8_t reg_address, uint8_t *pData, int size);
-	int 			regRead(uint8_t reg_address, uint8_t *pData, int size);
-	int 			regFunction(uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size);
-	/*read/write remote registers, and remote function calls*/
-	int 			remoteRegWrite(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size);
-	int 			remoteRegRead(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size);
-	int 			remoteRegFunction(uint16_t destination, uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size);
-
-    static int getLastNetworkId(uint16_t *network_id, uint16_t remote_id = NULL);
-    static int getLastDataLength(uint8_t *data_length, uint16_t remote_id = NULL);
-    static int getNetworkId(uint16_t *network_id);
-    static int setNetworkId(uint16_t network_id, uint16_t remote_id = NULL);
-    static int getUWBSettings(UWB_settings_t *UWB_settings, uint16_t remote_id = NULL);
-    static int setUWBSettings(UWB_settings_t *UWB_settings, uint16_t remote_id = NULL);
-    static int setUWBChannel(int channel_num, uint16_t remote_id = NULL);
-    static int getUWBChannel(int* channel_num, uint16_t remote_id = NULL);
-    static int setTxPower(float txgain_dB, uint16_t remote_id = NULL);
-    static int getTxPower(float* txgain_dB, uint16_t remote_id = NULL);
-    static int getWhoAmI(uint8_t *whoami, uint16_t remote_id = NULL);
-    static int getFirmwareVersion(uint8_t *firmware, uint16_t remote_id = NULL);
-    static int getHardwareVersion(uint8_t *hardware, uint16_t remote_id = NULL);
-    static int getSelftest(uint8_t *selftest, uint16_t remote_id = NULL);
-   	static int getErrorCode(uint8_t *error_code, uint16_t remote_id = NULL);
-   	static int getInterruptStatus(uint8_t *interrupts, uint16_t remote_id = NULL);
-    static int getCalibrationStatus(uint8_t *calibration_status, uint16_t remote_id = NULL);
-    static int getGPIO(int gpio_num, uint8_t *value, uint16_t remote_id = NULL);
-    static int setGPIO(int gpio_num, uint8_t value, uint16_t remote_id = NULL);
-    static void resetSystem(uint16_t remote_id = NULL);
-    static int setLed(int led_num, bool state, uint16_t remote_id = NULL);
-    static int getInterruptMask(uint8_t *mask, uint16_t remote_id = NULL);
-    static int setInterruptMask(uint8_t mask, uint16_t remote_id = NULL);
-    static int getConfigModeGPIO(int gpio_num, uint8_t *mode, uint16_t remote_id = NULL);
-    static int getConfigPullGPIO(int gpio_num, uint8_t *pull, uint16_t remote_id = NULL);
-    static int setConfigGPIO(int gpio_num, int mode, int pull, uint16_t remote_id = NULL);
-    static int setLedConfig(uint8_t config = 0x0, uint16_t remote_id = NULL);
-    static int configInterruptPin(int pin, int mode, int bActiveHigh, int bLatch, uint16_t remote_id=NULL);
-    static int saveConfiguration(int type, uint8_t registers[] = NULL, int num_registers = 0, uint16_t remote_id = NULL);
-    static int clearConfiguration(uint16_t remote_id = NULL);
-    static bool isRegisterSaved(uint8_t regAddress, uint16_t remote_id = NULL);
-    static int getNumRegistersSaved(uint16_t remote_id = NULL);
-    static int getCoordinates(coordinates_t *coordinates, uint16_t remote_id = NULL);
-    static int setCoordinates(coordinates_t coordinates, uint16_t remote_id = NULL);
-    static int getPositionError(pos_error_t *pos_error, uint16_t remote_id = NULL);
-    static int setPositioningAnchorIds(uint16_t anchors[], int anchor_num, uint16_t remote_id = NULL);
-    static int getPositioningAnchorIds(uint16_t anchors[], int anchor_num, uint16_t remote_id = NULL);
-    static int getUpdateInterval(uint16_t *ms, uint16_t remote_id = NULL);
-    static int setUpdateInterval(uint16_t ms, uint16_t remote_id = NULL);
-    static int getPositionAlgorithm(uint8_t *algorithm, uint16_t remote_id = NULL);
-    static int getPositionDimension(uint8_t *dimension, uint16_t remote_id = NULL);
-    static int setPositionAlgorithm(int algorithm = POZYX_POS_ALG_UWB_ONLY, int dimension = 0x0, uint16_t remote_id = NULL);
-    static int getAnchorSelectionMode(uint8_t *mode, uint16_t remote_id = NULL);
-    static int getNumberOfAnchors(uint8_t *nr_anchors, uint16_t remote_id = NULL);
-    static int setSelectionOfAnchors(int mode, int nr_anchors, uint16_t remote_id = NULL);
-    static int getOperationMode(uint8_t *mode, uint16_t remote_id = NULL);
-    static int setOperationMode(uint8_t mode, uint16_t remote_id = NULL);
-    //static string getSystemError(uint16_t remote_id = NULL);
-    static int getSensorMode(uint8_t *sensor_mode, uint16_t remote_id = NULL);
-    static int setSensorMode(uint8_t sensor_mode, uint16_t remote_id = NULL);
-    static int getAllSensorData(sensor_data_t *sensor_data, uint16_t remote_id = NULL);
-    static int getPressure_Pa(float32_t *pressure, uint16_t remote_id = NULL);
-    static int getAcceleration_mg(acceleration_t *acceleration, uint16_t remote_id = NULL);
-    static int getMagnetic_uT(magnetic_t *magnetic, uint16_t remote_id = NULL);
-    static int getAngularVelocity_dps(angular_vel_t *angular_vel, uint16_t remote_id = NULL);
-    static int getEulerAngles_deg(euler_angles_t *euler_angles, uint16_t remote_id = NULL);
-    static int getQuaternion(quaternion_t *quaternion, uint16_t remote_id = NULL);
-    static int getLinearAcceleration_mg(linear_acceleration_t *linear_acceleration, uint16_t remote_id = NULL);
-    static int getGravityVector_mg(gravity_vector_t *gravity_vector, uint16_t remote_id = NULL);
-    static int getTemperature_c(float32_t *temperature, uint16_t remote_id = NULL);
-    static int doPositioning(coordinates_t *position, uint8_t dimension = POZYX_2D, int32_t height = 0, uint8_t algorithm = POZYX_POS_ALG_UWB_ONLY);
-    static int doRemotePositioning(uint16_t remote_id, coordinates_t *coordinates, uint8_t dimension = POZYX_2D, int32_t height = 0, uint8_t algorithm = 0);
-    static int doRanging(uint16_t destination, device_range_t *range);
-    static int doRemoteRanging(uint16_t device_from, uint16_t device_to, device_range_t *range);
-    static int getDeviceRangeInfo(uint16_t device_id, device_range_t *device_range, uint16_t remote_id = NULL);
-    static int getDeviceListSize(uint8_t *device_list_size, uint16_t remote_id = NULL);
-    static int getDeviceIds(uint16_t devices[], int size, uint16_t remote_id = NULL);
-    static int getAnchorIds(uint16_t anchors[], int size, uint16_t remote_id = NULL);
-    static int getTagIds(uint16_t tags[], int size, uint16_t remote_id = NULL);
-    static int doDiscovery(int type = 0x0, int slots = 3, int slot_duration = 10);
-    static int doAnchorCalibration(int dimension = POZYX_2D, int num_measurements = 10, int num_anchors = 0, uint16_t anchors[] = NULL,  int32_t heights[] = NULL);
-    static int clearDevices(uint16_t remote_id = NULL);
-    static int addDevice(device_coordinates_t device_coordinates, uint16_t remote_id = NULL);
-    static int getDeviceCoordinates(uint16_t device_id, coordinates_t *coordinates, uint16_t remote_id = NULL);
-
-/** @}*/    
-protected:
-	Device 		*_interface;
-	//struct pozyx_bus_options _busid;
-	static int _mode;               // the mode of operation, can be MODE_INTERRUPT or MODE_POLLING
-    static int _interrupt;          // variable to indicate that an interrupt has occured
-
-    static int _hw_version;         // Pozyx harware version 
-    static int _fw_version;         // Pozyx software (firmware) version. (By updating the firmware on the Pozyx device, this value can change)
-
-private:
-
-
-	/*initialize automatic measurement state machine and start it*/
-	void 			start();
-	/*stop automatic measurement state machine*/
-	void 			stop();
-	/*reset the device */
-	int 			reset();
-
-	void			cycle();
-
-	POZYX(const POZYX &);
-	POZYX operator=(const POZYX &);
-};
-
-/*Driver 'main' command.*/
-extern "C" __EXPORT int pozyx_main(int argc, char *argv[]);
-
-POZYX::POZYX(device::Device *interface, const char *path) :
-	CDev("POZYX", path),
-	_interface(interface)
-{
-	//_busid = find_bus()
-}
-
-POZYX::~POZYX()
-{
-	//make sure we are inactive
-	stop();
-}
-
-//include functions defined in pozyx_lib.cpp
-#include "Pozyx_lib.h"
-int
-POZYX::init()
-{
-	return 0;
-}
-
-void
-POZYX::start()
-{
-	return 0;
-}
-
-void
-POZYX::stop()
-{
-	return 0;
-}
-
-int
-POZYX::reset()
-{
-	return 0;
-}
-
-void
-POZYX::cycle()
-{
-	return 0;
-}
-
-void POZYX::IRQ()
-{  
-  _interrupt = 1;  
-}
-
-boolean POZYX::waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
-{
-  long timer = millis();
-  int status;
-  
-  // stay in this loop until the event interrupt flag is set or until the the timer runs out
-  while(millis()-timer < timeout_ms)
-  {
-    // in polling mode, we insert a small delay such that we don't swamp the i2c bus
-    if( _mode == MODE_POLLING ){
-      delay(1);
-    }
-    
-    if( (_interrupt == 1) || (_mode == MODE_POLLING))
-    { 
-      _interrupt = 0;
-      
-      // Read out the interrupt status register. After reading from this register, pozyx automatically clears the interrupt flags.
-      uint8_t interrupt_status = 0;
-      status = regRead(POZYX_INT_STATUS, &interrupt_status, 1);
-      if((interrupt_status & interrupt_flag) && status == POZYX_SUCCESS)
-      {
-        // one of the interrupts we were waiting for arrived!
-        if(interrupt != NULL)
-          *interrupt = interrupt_status;
-        return true;
-      }
-    }     
-  } 
-  // too bad, pozyx didn't respond 
-  // 1) pozyx can select from two pins to generate interrupts, make sure the correct pin is connected with the attachInterrupt() function.
-  // 2) make sure the interrupt we are waiting for is enabled in the POZYX_INT_MASK register)
-  return false;  
-}
-
-boolean POZYX::waitForFlag_safe(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
-{
-  int tmp = _mode;
-  _mode = MODE_POLLING;
-  boolean result = waitForFlag(interrupt_flag, timeout_ms, interrupt);
-  _mode = tmp;
-  return result;
-}
-
-int 
-POZYX::regWrite(uint8_t reg_address, uint8_t *pData, int size)
-{  
-   
-  if(!IS_REG_WRITABLE(reg_address))
-    return POZYX_FAILURE;
-  
-  int n_runs = ceil((float)size / BUFFER_LENGTH);
-  int i;
-  int status = 1;
-    
-  for(i=0; i<n_runs; i++)
-  {
-    int offset = i*BUFFER_LENGTH;
-    if(i+1 != n_runs){
-    	status = _interface->write(reg_address+offset, pData+offset, BUFFER_LENGTH);    
-    }else{
-    	status = _interface->write(reg_address+offset, pData+offset, size-offset);    
-    }    
-  }
-  
-  return status;
-}
-POZYX::remoteRegWrite(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size)
-{
-	return 0;
-}
-
-/**
-  * Reads a number of bytes from the specified pozyx register address using I2C
-  */
-int 
-POZYX::regRead(uint8_t reg_address, uint8_t *pData, int size)
-{  
-  if(!IS_REG_READABLE(reg_address)){
-    return POZYX_FAILURE;
-  }
-  
-  int n_runs = ceil((float)size / BUFFER_LENGTH);
-  int i;
-  int status = 1;
-  uint8_t reg;
-    
-  for(i=0; i<n_runs; i++)
-  {
-    int offset = i*BUFFER_LENGTH;
-    reg = reg_address+offset;    
-    
-    if(i+1 != n_runs){  
-    	status = _interface->read(reg, pData+offset, BUFFER_LENGTH);    
-    }else{      
-    	status = _interface->read(reg, pData+offset, size-offset);    
-    }    
-  }
-  
-  return status;
-}
-int
-POZYX::remoteRegRead(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size)
-{
-	return 0;
-}
-/**
-  * Call a register function using i2c with given parameters, the data from the function is stored in pData
-  */
-int 
-POZYX::regFunction(uint8_t reg_address, uint8_t *params, int param_size, uint8_t *pData, int size)
-{
-
-  if(!IS_FUNCTIONCALL(reg_address)){
-    	return POZYX_FAILURE;
-	}	
-
-  uint8_t status;
-  
-   // first write some data with i2c and then read some data
-  status = _interface->write(reg_address, params, param_size);
-  if(status == POZYX_FAILURE){
-    return status;    
-	}
-  //copy returned data (which has been written to paramdata) to specified address  
-  memcpy(&pData, &params, size);
-  // the first byte that a function returns is always it's success indicator, so we simply pass this through
-  memcpy(&status, &params, 1);
-  return status;
-}
-POZYX::remoteRegFunction(uint16_t destination, uint8_t reg_address, uint8_t *pData, int size)
-{
-	return 0;
-}
 
 
 
@@ -398,17 +69,24 @@ namespace pozyx
 	#endif
 	const int ERROR = -1;
 
+	enum POZYX_BUS {
+		POZYX_BUS_ALL = 0,
+		POZYX_BUS_I2C_INTERNAL,
+		POZYX_BUS_I2C_EXTERNAL
+	};
+
 	//list of supported bus configurations
 	struct pozyx_bus_option {
 		enum POZYX_BUS busid;
 		const char *devpath;
 		POZYX_constructor interface_constructor;
 		uint8_t busnum;
-		POZYX *dev;
+		PozyxClass *dev;
 	} bus_options[2] = {
 		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, NULL },
 		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, NULL },
 	};
+
 
 		
 	#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
@@ -441,7 +119,7 @@ namespace pozyx
 			return false;
 		}
 
-		bus.dev = new POZYX(interface, bus.devpath);
+		bus.dev = new PozyxClass();
 
 		if (bus.dev != nullptr && OK != bus.dev->init()) {
 			delete bus.dev;

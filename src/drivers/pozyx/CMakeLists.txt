@@ -38,6 +38,8 @@ px4_add_module(
 		-Weffc++
 		-Os
 	SRCS
+		pozyx_core.cpp
+		pozyx_lib.cpp
 		pozyx_i2c.cpp
 		pozyx.cpp
 	DEPENDS

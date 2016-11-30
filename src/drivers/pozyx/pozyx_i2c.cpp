@@ -29,7 +29,8 @@
 #include <drivers/drv_mag.h>
 #include <drivers/drv_device.h>
 
-#include "pozyx.h"
+#include "pozyx_extradefs.h"
+#include "pozyx_definitions.h"
 #include "board_config.h"
 
 device::Device *POZYX_I2C_interface(int bus);
@@ -58,7 +59,7 @@ POZYX_I2C_interface(int bus)
 }
 
 POZYX_I2C::POZYX_I2C(int bus) :
-I2C("POZYX_I2C", nullptr, bus, POZYX_I2C_ADDR, 400000)
+I2C("POZYX_I2C", nullptr, bus, POZYX_I2C_ADDRESS, 400000)
 {
 	_device_id.devid_s.devtype = DRV_POS_DEVTYPE_POZYX;
 }
