@@ -104,13 +104,16 @@ namespace pozyx
 	bool 
 	start_bus(struct pozyx_bus_option &bus)
 	{
+		PX4_INFO("debug 6");
 		if (bus.dev != nullptr) {
+		PX4_INFO("debug 7");
 			errx(1, "bus option already started");
 		}
 
 		device::Device *interface = bus.interface_constructor(bus.busnum);
 
 		if (interface->init() != OK) {
+		PX4_INFO("debug 8");
 			delete interface;
 			warnx("no device on bus %u", (unsigned)bus.busid);
 			return false;
@@ -119,6 +122,7 @@ namespace pozyx
 		bus.dev = new PozyxClass(bus.busid);
 
 		if (bus.dev != nullptr && OK != bus.dev->begin()) {
+		PX4_INFO("debug 9");
 			delete bus.dev;
 			bus.dev = NULL;
 			return false;
@@ -127,16 +131,20 @@ namespace pozyx
 		int fd = open(bus.devpath, O_RDONLY);
 
 		if (fd < 0) {
+		PX4_INFO("debug 10");
 			return false;
 		}
 
 		if (ioctl(fd, SENSORIOCSPOLLRATE, SENSOR_POLLRATE_DEFAULT) < 0) {
+		PX4_INFO("debug 11");
 			close(fd);
 			errx(1, "failed to setup poll rate");
 		}
 
+		PX4_INFO("debug 12");
 		close(fd);
 
+		PX4_INFO("debug 13");
 		return true;
 	}
 
@@ -145,19 +153,24 @@ namespace pozyx
 	start(enum POZYX_BUS busid)
 	{
 		bool started = false;
+		PX4_INFO("debug 1");
 
 		for (unsigned i = 0; i < NUM_BUS_OPTIONS; i++) {
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
+		PX4_INFO("debug 2");
 				continue;
 			}
 
 			if (busid != POZYX_BUS_ALL && bus_options[i].busid != busid) {
+		PX4_INFO("debug 3");
 				continue;
 			}
 
 			started |= start_bus(bus_options[i]);
+		PX4_INFO("debug 4");
 		}
 		if (!started) {
+		PX4_INFO("debug 5");
 			exit(1);
 		}
 	}
