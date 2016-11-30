@@ -41,6 +41,7 @@ px4_add_module(
 		pozyx_core.cpp
 		pozyx_lib.cpp
 		pozyx.cpp
+		pozyx_i2c.cpp
 	DEPENDS
 		platforms__common
 	)
