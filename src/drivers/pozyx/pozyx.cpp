@@ -81,13 +81,13 @@ namespace pozyx
 		POZYX_constructor interface_constructor;
 		uint8_t busnum;
 		PozyxClass *dev;
-	} bus_options[2] = {
+	} bus_options[] = {
 		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, NULL },
 		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, NULL },
 	};
 		
-	#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
-
+	//#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
+	const int NUM_BUS_OPTIONS = sizeof(bus_options)/sizeof(bus_options[0]);
 
 	void 	start(enum POZYX_BUS busid);
 	bool 	start_bus(struct pozyx_bus_option &bus);
@@ -104,47 +104,41 @@ namespace pozyx
 	bool 
 	start_bus(struct pozyx_bus_option &bus)
 	{
-		PX4_INFO("debug 6");
 		if (bus.dev != nullptr) {
-		PX4_INFO("debug 7");
 			errx(1, "bus option already started");
 		}
 
 		device::Device *interface = bus.interface_constructor(bus.busnum);
 
 		if (interface->init() != OK) {
-		PX4_INFO("debug 8");
 			delete interface;
 			warnx("no device on bus %u", (unsigned)bus.busid);
 			return false;
 		}
 
 		bus.dev = new PozyxClass(bus.busid);
+		sleep(0.1);
 
 		if (bus.dev != nullptr && OK != bus.dev->begin()) {
-		PX4_INFO("debug 9");
 			delete bus.dev;
 			bus.dev = NULL;
 			return false;
 		}
 
 		int fd = open(bus.devpath, O_RDONLY);
+		sleep(0.1);
 
 		if (fd < 0) {
-		PX4_INFO("debug 10");
 			return false;
 		}
 
 		if (ioctl(fd, SENSORIOCSPOLLRATE, SENSOR_POLLRATE_DEFAULT) < 0) {
-		PX4_INFO("debug 11");
 			close(fd);
 			errx(1, "failed to setup poll rate");
 		}
 
-		PX4_INFO("debug 12");
 		close(fd);
 
-		PX4_INFO("debug 13");
 		return true;
 	}
 
@@ -153,24 +147,23 @@ namespace pozyx
 	start(enum POZYX_BUS busid)
 	{
 		bool started = false;
-		PX4_INFO("debug 1");
-
-		for (unsigned i = 0; i < NUM_BUS_OPTIONS; i++) {
+		unsigned i = 0;
+		sleep(1);
+		for (i = 0; i < NUM_BUS_OPTIONS; i++) {
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
-		PX4_INFO("debug 2");
+				//this device is already started
 				continue;
 			}
 
 			if (busid != POZYX_BUS_ALL && bus_options[i].busid != busid) {
-		PX4_INFO("debug 3");
+				//not the one that is asked for
 				continue;
 			}
 
+
 			started |= start_bus(bus_options[i]);
-		PX4_INFO("debug 4");
 		}
 		if (!started) {
-		PX4_INFO("debug 5");
 			exit(1);
 		}
 	}
@@ -194,7 +187,7 @@ namespace pozyx
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
 		int testread;
-		//int ret;
+		/*
 		const char *path = bus.devpath;
 
 		int fd = open(path, O_RDONLY);
@@ -202,6 +195,7 @@ namespace pozyx
 		if (fd < 0) {
 			err(1, "%s open failed (try 'pozyx start')", path);			
 		}
+		*/
 		uint8_t whoami = 0;
 		testread = bus.dev->regRead(POZYX_WHO_AM_I, &whoami, 1);
 		PX4_INFO("value of whoami is: 0x%x", whoami);
@@ -317,9 +311,10 @@ pozyx_main(int argc, char *argv[])
 		exit(0);
 	}
 
-	//pozyx begin
-	if (!strcmp(verb, "begin")) {
-		//pozyx::begin(true, MODE_POLLING, POZYX_INT_MASK_ALL);
+		//debug
+	if (!strcmp(verb, "debug")) {
+		PX4_INFO("bus options[0]: %d, %s, %d.... size: %d", pozyx::bus_options[0].busid, pozyx::bus_options[0].devpath, pozyx::bus_options[0].busnum, sizeof(pozyx::bus_options));
+		PX4_INFO("num bus options: %d", pozyx::NUM_BUS_OPTIONS);
 		exit(0);
 	}
 
