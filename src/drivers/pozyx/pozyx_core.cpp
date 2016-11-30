@@ -6,22 +6,26 @@
 */
 
 #include "pozyx.h"
-#include "pozyx_i2c.cpp"
 
 #include <ctime>
 //#include <iostream>
 
-extern "C" {
-  #include "pozyx_definitions.h"
+
+    
+PozyxClass::PozyxClass(int bus) : 
+    _mode(0),
+    _interrupt(0),
+    _hw_version(0),
+    _fw_version(0),
+    _interface(bus)
+    {
+      //_interface = &POZYX_I2C_interface(bus);
+    }
+
+PozyxClass::~PozyxClass()
+{  
+  delete &_interface;
 }
-
-int PozyxClass::_interrupt;
-int PozyxClass::_mode;
-
-int PozyxClass::_hw_version;       // pozyx harware version 
-int PozyxClass::_fw_version;       // pozyx firmware version. (By updating the firmware on the pozyx device, this value can change);
-
-device::Device PozyxClass::_interface;
 
 /**
  * The interrupt handler for the pozyx device: keeping it uber short!
@@ -31,14 +35,14 @@ void PozyxClass::IRQ()
   _interrupt = 1;  
 }
 
-boolean PozyxClass::waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
+bool PozyxClass::waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
 {
-  std::time_t timer = std::time(nullptr);
+  std::time_t timer = time(nullptr);
   int status;
   int timeout_s = timeout_ms/1000;
   
   // stay in this loop until the event interrupt flag is set or until the the timer runs out
-  while(std::time(nullptr)-timer < timeout_s)
+  while(time(nullptr)-timer < timeout_s)
   {
     // in polling mode, we insert a small delay such that we don't swamp the i2c bus
     if( _mode == MODE_POLLING ){
@@ -67,16 +71,16 @@ boolean PozyxClass::waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t 
   return false;  
 }
 
-boolean PozyxClass::waitForFlag_safe(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
+bool PozyxClass::waitForFlag_safe(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt)
 {
   int tmp = _mode;
   _mode = MODE_POLLING;
-  boolean result = waitForFlag(interrupt_flag, timeout_ms, interrupt);
+  bool result = waitForFlag(interrupt_flag, timeout_ms, interrupt);
   _mode = tmp;
   return result;
 }
 
-int PozyxClass::begin(boolean print_result, int mode, int interrupts, int interrupt_pin){
+int PozyxClass::begin(bool print_result, int mode, int interrupts, int interrupt_pin){
   
   int status = POZYX_SUCCESS;
 
@@ -95,12 +99,12 @@ int PozyxClass::begin(boolean print_result, int mode, int interrupts, int interr
     return POZYX_FAILURE;
 
 
-  pozyx::start(POZYX_BUS_ALL); 
+  //pozyx::start(POZYX_BUS_ALL); 
 
   // wait a bit until the pozyx board is up and running
   sleep(0.250);
 
-  struct pozyx_bus_option &bus = pozyx::find_bus(POZYX_BUS_ALL);
+  //struct pozyx_bus_option &bus = pozyx::find_bus(POZYX_BUS_ALL);
   
   _mode = mode;
   
@@ -119,7 +123,7 @@ int PozyxClass::begin(boolean print_result, int mode, int interrupts, int interr
       if(print_result){
         PX4_INFO("WhoAmI: 0x%x",whoami);
         PX4_INFO("FW ver.: v%d.%d",((_fw_version&0xF0)>>4),(_fw_version&0x0F));
-        if(fw_version < 0x10) {
+        if(_fw_version < 0x10) {
           PX4_INFO("please upgrade");
         }
         PX4_INFO("HW ver.: v%d.%d", ((_hw_version&0xE0)>>5),(_hw_version&0x1F));
@@ -203,9 +207,9 @@ int PozyxClass::regRead(uint8_t reg_address, uint8_t *pData, int size)
     reg = reg_address+offset;    
     
     if(i+1 != n_runs){  
-      status = _interface->read(reg, pData+offset, BUFFER_LENGTH);    
+      status = _interface.read(reg, pData+offset, BUFFER_LENGTH);    
     }else{      
-      status = _interface->read(reg, pData+offset, size-offset);    
+      status = _interface.read(reg, pData+offset, size-offset);    
     }    
   }
   
@@ -229,9 +233,9 @@ int PozyxClass::regWrite(uint8_t reg_address, const uint8_t *pData, int size)
   {
     int offset = i*BUFFER_LENGTH;
     if(i+1 != n_runs){
-      status = _interface->write(reg_address+offset, pData+offset, BUFFER_LENGTH);    
+      status = _interface.write(reg_address+offset, (void*)(pData+offset), BUFFER_LENGTH);    
     }else{
-      status = _interface->write(reg_address+offset, pData+offset, size-offset);    
+      status = _interface.write(reg_address+offset, (void*)(pData+offset), size-offset);    
     }    
   }
   
@@ -250,7 +254,7 @@ int PozyxClass::regFunction(uint8_t reg_address, uint8_t *params, int param_size
   uint8_t status;
   
    // first write some data with i2c and then read some data
-  status = _interface->write(reg_address, params, param_size);
+  status = _interface.write(reg_address, params, param_size);
   if(status == POZYX_FAILURE){
     return status;    
   }
@@ -486,7 +490,7 @@ int PozyxClass::readRXBufferData(uint8_t* pData, int size)
     return POZYX_FAILURE;
   }
   
-  int status;
+  int status = 0;
   int i;
   uint8_t params[2];
   int max_bytes = BUFFER_LENGTH-1;
@@ -570,4 +574,4 @@ int PozyxClass::i2cWriteRead(uint8_t* write_data, int write_len, uint8_t* read_d
   return (POZYX_SUCCESS);  // return : no error
 }
 
-PozyxClass Pozyx;
+//PozyxClass Pozyx;

@@ -40,7 +40,6 @@ px4_add_module(
 	SRCS
 		pozyx_core.cpp
 		pozyx_lib.cpp
-		pozyx_i2c.cpp
 		pozyx.cpp
 	DEPENDS
 		platforms__common
