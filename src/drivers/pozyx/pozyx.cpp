@@ -277,6 +277,7 @@ pozyx_main(int argc, char *argv[])
 	
 	int ch;
 	enum POZYX_BUS busid = POZYX_BUS_ALL;
+	struct pozyx_bus_option &bus = find_bus(busid);
 
 	while ((ch = getopt(argc, argv, "XISR:CT")) != EOF) {
 		switch (ch) {
@@ -303,6 +304,21 @@ pozyx_main(int argc, char *argv[])
 	if (!strcmp(verb, "test")) {
 		PX4_INFO("testing pozyx...");
 		pozyx::test(busid);
+		exit(0);
+	}
+		//configure pozyx
+	if (!strcmp(verb, "config")) {
+		UWB_settings_t tagconfig;
+		tagconfig.channel = 5;
+		tagconfig.bitrate = 2;
+		tagconfig.prf = 2;
+		tagconfig.plen = 0x04;
+		if (bus.dev->setUWBChannel(5) = POZYX_SUCCESS){
+			if (bus.dev->setUWBSettings(tagconfig)){
+				PX4_INFO("UWB settings configured successfully");
+			}
+		}
+
 		exit(0);
 	}
 
