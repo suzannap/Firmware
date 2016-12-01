@@ -93,6 +93,7 @@ namespace pozyx
 	bool 	start_bus(struct pozyx_bus_option &bus);
 	struct 	pozyx_bus_option &find_bus(enum POZYX_BUS busid);
 	void 	test(enum POZYX_BUS busid);
+	void 	config(enum POZYX_BUS busid);
 	void	reset(enum POZYX_BUS busid);
 	void	getposition(enum POZYX_BUS busid);
 	int 	info(enum POZYX_BUS busid, bool enable);
@@ -243,24 +244,64 @@ namespace pozyx
 	getposition(enum POZYX_BUS busid)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
-		uint32_t coordinates[3];
+		coordinates_t coordinates;
 
 
-		bus.dev->regRead(POZYX_POS_X, (uint8_t *)&coordinates[0], 4);
-		bus.dev->regRead(POZYX_POS_Y, (uint8_t *)&coordinates[1], 4);
-		bus.dev->regRead(POZYX_POS_Z, (uint8_t *)&coordinates[2], 4);
+		bus.dev->regRead(POZYX_POS_X, (uint8_t *)&coordinates.x, 4);
+		bus.dev->regRead(POZYX_POS_Y, (uint8_t *)&coordinates.y, 4);
+		bus.dev->regRead(POZYX_POS_Z, (uint8_t *)&coordinates.z, 4);
 
-		PX4_INFO("Current position: %d   %d   %d", coordinates[0], coordinates[1], coordinates[2]);
+		PX4_INFO("Current position (X,Y,Z): %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
+
+		bus.dev->doPositioning(&coordinates, POZYX_3D);
+		PX4_INFO("Current position doPos: %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
+
 		
 		struct att_pos_mocap_s att;
 		memset(&att, 0, sizeof(att));
 		orb_advert_t att_pub = orb_advertise(ORB_ID(att_pos_mocap), &att);
-		att.x = coordinates[0];
-		att.y = coordinates[1];
-		att.z = coordinates[2];
+		att.x = coordinates.x;
+		att.y = coordinates.y;
+		att.z = coordinates.z;
 
 		orb_publish(ORB_ID(att_pos_mocap), att_pub, &att);
 		
+	}
+	void
+	config(enum POZYX_BUS busid)
+	{
+		struct pozyx_bus_option &bus = find_bus(busid);
+		UWB_settings_t tagconfig;
+		tagconfig.channel = 5;
+		tagconfig.bitrate = 2;
+		tagconfig.prf = 2;
+		tagconfig.plen = 0x04;
+		if (bus.dev->setUWBChannel(5) == POZYX_SUCCESS){
+			if (bus.dev->setUWBSettings(&tagconfig) == POZYX_SUCCESS){
+				PX4_INFO("UWB settings configured successfully");
+			}
+		}
+
+		uint8_t num_anchors =4;
+		device_coordinates_t anchorlist[num_anchors] = {
+			{0x684E, 1, {0, 962, 1247}},
+			{0x682E, 1, {0, 4293, 2087}},
+			{0x6853, 1, {6746, 4888, 1559}},
+			{0x6852, 1, {4689, 0, 2491}}
+		};
+		if (bus.dev->clearDevices() == POZYX_SUCCESS){
+			for (int i = 0; i < num_anchors; i++) {
+				if (bus.dev->addDevice(anchorlist[i]) != POZYX_SUCCESS) {
+					PX4_INFO("failed to add anchor");
+					exit(1);
+				}
+				PX4_INFO("Anchor 0x%x successfully added at (%d, %d, %d)", anchorlist[i].network_id, anchorlist[i].pos.x, anchorlist[i].pos.y, anchorlist[i].pos.z);
+			}
+			if (bus.dev->getDeviceListSize(&num_anchors) == POZYX_SUCCESS) {
+				PX4_INFO("%d anchors configured", num_anchors);
+			}
+		}
+		exit(0);
 	}
 
 	void
@@ -274,10 +315,8 @@ namespace pozyx
 int
 pozyx_main(int argc, char *argv[])
 {
-	
 	int ch;
 	enum POZYX_BUS busid = POZYX_BUS_ALL;
-	struct pozyx_bus_option &bus = find_bus(busid);
 
 	while ((ch = getopt(argc, argv, "XISR:CT")) != EOF) {
 		switch (ch) {
@@ -295,30 +334,17 @@ pozyx_main(int argc, char *argv[])
 	//start/load driver
 	if (!strcmp(verb, "start")) {
 		pozyx::start(busid);
-		PX4_INFO("pozyx started");
-
 		exit(0);
 	}
 
 	//test driver/device
 	if (!strcmp(verb, "test")) {
-		PX4_INFO("testing pozyx...");
 		pozyx::test(busid);
 		exit(0);
 	}
 		//configure pozyx
 	if (!strcmp(verb, "config")) {
-		UWB_settings_t tagconfig;
-		tagconfig.channel = 5;
-		tagconfig.bitrate = 2;
-		tagconfig.prf = 2;
-		tagconfig.plen = 0x04;
-		if (bus.dev->setUWBChannel(5) = POZYX_SUCCESS){
-			if (bus.dev->setUWBSettings(tagconfig)){
-				PX4_INFO("UWB settings configured successfully");
-			}
-		}
-
+		pozyx::config(busid);
 		exit(0);
 	}
 
