@@ -61,7 +61,19 @@
 #include <uORB/topics/att_pos_mocap.h>
 #include "pozyx.h"
 
+//needed to run daemon
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
+#include <nuttx/sched.h>
+
+#include <systemlib/systemlib.h>
+#include <systemlib/err.h>
+
+static bool thread_should_exit = false;		/**< daemon exit flag */
+static bool thread_running = false;		/**< daemon status flag */
+static int daemon_task;				/**< Handle of daemon task / thread */
 
 enum POZYX_BUS {
 	POZYX_BUS_ALL = 0,
@@ -69,6 +81,7 @@ enum POZYX_BUS {
 	POZYX_BUS_I2C_EXTERNAL
 };
 
+int pozyx_pub_main(int argc, char *argv[]);
 extern "C" __EXPORT int pozyx_main(int argc, char *argv[]);
 /****************namespace**********************************************/
 namespace pozyx
@@ -95,8 +108,7 @@ namespace pozyx
 	void 	test(enum POZYX_BUS busid);
 	void 	config(enum POZYX_BUS busid);
 	void	reset(enum POZYX_BUS busid);
-	void	getposition(enum POZYX_BUS busid);
-	int 	info(enum POZYX_BUS busid, bool enable);
+	void	getposition(enum POZYX_BUS busid, bool print_result);
 	int 	calibrate(enum POZYX_BUS busid);
 	void	usage();
 
@@ -166,7 +178,7 @@ namespace pozyx
 			started |= start_bus(bus_options[i]);
 		}
 		if (!started) {
-			exit(1);
+			//exit(1);
 		}
 	}
 
@@ -241,32 +253,28 @@ namespace pozyx
 	}
 
 	void
-	getposition(enum POZYX_BUS busid)
+	getposition(enum POZYX_BUS busid, bool print_result)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
+
 		coordinates_t coordinates;
 
-
-		bus.dev->regRead(POZYX_POS_X, (uint8_t *)&coordinates.x, 4);
-		bus.dev->regRead(POZYX_POS_Y, (uint8_t *)&coordinates.y, 4);
-		bus.dev->regRead(POZYX_POS_Z, (uint8_t *)&coordinates.z, 4);
-
-		PX4_INFO("Current position (X,Y,Z): %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
-
 		bus.dev->doPositioning(&coordinates, POZYX_3D);
-		PX4_INFO("Current position doPos: %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
-
+		if (print_result) {
+			PX4_INFO("Current position: %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
+		}
 		
-		struct att_pos_mocap_s att;
-		memset(&att, 0, sizeof(att));
-		orb_advert_t att_pub = orb_advertise(ORB_ID(att_pos_mocap), &att);
-		att.x = coordinates.x;
-		att.y = coordinates.y;
-		att.z = coordinates.z;
+		struct att_pos_mocap_s pos;
+		memset(&pos, 0, sizeof(pos));
+		orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
+		pos.x = coordinates.x;
+		pos.y = coordinates.y;
+		pos.z = coordinates.z;
 
-		orb_publish(ORB_ID(att_pos_mocap), att_pub, &att);
-		
+		orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+
 	}
+
 	void
 	config(enum POZYX_BUS busid)
 	{
@@ -312,6 +320,7 @@ namespace pozyx
 
 } //namespace
 
+
 int
 pozyx_main(int argc, char *argv[])
 {
@@ -319,21 +328,43 @@ pozyx_main(int argc, char *argv[])
 	enum POZYX_BUS busid = POZYX_BUS_ALL;
 
 	while ((ch = getopt(argc, argv, "XISR:CT")) != EOF) {
-		switch (ch) {
-			case 'R':
-			//rotation = (enum Rotation)atoi(optarg);
-			default:
-			pozyx::usage();
-			exit(0);
-		}
+		pozyx::usage();
+		exit(0);
 	}
-	
 
 	const char *verb = argv[optind];
 
-	//start/load driver
+	//start/load driver and begin cycles
 	if (!strcmp(verb, "start")) {
+		if (thread_running) {
+			warnx("pozyx already running\n");
+			exit(0);
+		}
 		pozyx::start(busid);
+
+		thread_should_exit = false;
+		daemon_task = px4_task_spawn_cmd("pozyx_pub", 
+											SCHED_DEFAULT, 
+											SCHED_PRIORITY_DEFAULT, 
+											2000, 
+											pozyx_pub_main,
+											(argv) ? (char *const *)&argv[2] : (char *const *)NULL);
+		exit(0);
+	}
+
+	//stop the daemon
+	if (!strcmp(verb, "stop")) {
+		thread_should_exit = true;
+		exit(0);
+	}
+
+	if (!strcmp(verb, "status")) {
+		if (thread_running) {
+			warnx("\trunning\n");
+
+		} else {
+			warnx("\tnot started\n");
+		}
 		exit(0);
 	}
 
@@ -348,10 +379,9 @@ pozyx_main(int argc, char *argv[])
 		exit(0);
 	}
 
-
 	//fetch positions
 	if (!strcmp(verb, "getposition")) {
-		pozyx::getposition(busid);
+		pozyx::getposition(busid, true);
 		exit(0);
 	}
 
@@ -363,6 +393,22 @@ pozyx_main(int argc, char *argv[])
 	}
 
 
-	errx(1, "unrecognized command, try start, test, getposition, begin");
+	errx(1, "Unrecognized command. Try start, stop, status, test, config, getposition");
+}
 
+
+int 
+pozyx_pub_main(int argc, char *argv[])
+{
+	warnx("[pozyx_pub] starting\n");
+	thread_running = true;
+
+	while (!thread_should_exit) {
+		pozyx::getposition(POZYX_BUS_ALL, false);
+		usleep(100000);
+	}
+
+	warnx("[pozyx_pub] exiting.\n");
+	thread_running = false;	
+	return 0;
 }

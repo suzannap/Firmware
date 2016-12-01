@@ -1,0 +1,25 @@
+#!nsh
+#
+# @name WaterBee
+#
+# @type boat
+#
+# @maintainer Suzanna Paulos <spaulos@taittowers.com>
+#
+
+if [ $AUTOCNF == yes ]
+then
+	param set ATT_EXT_HDG_M 2
+	param set SYS_MC_EST_GROUP 1
+fi
+
+#configure this as a boat
+set MAV_TYPE 7
+
+#set mixer
+set MIXER waterbee
+
+#provide ESCs constant 1000 us pulse
+set PWM_OUT 1234
+set PWM_AUX_DISARMED 1000
+
