@@ -22,6 +22,6 @@
 
 
 /* interface factory */
-extern device::Device *POZYX_I2C_interface(int bus);
-typedef device::Device *(*POZYX_constructor)(int);
+extern device::Device *POZYX_I2C_interface(int bus, const char *devname);
+typedef device::Device *(*POZYX_constructor)(int, const char*);
 

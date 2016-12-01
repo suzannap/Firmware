@@ -33,12 +33,12 @@
 #include "pozyx_definitions.h"
 #include "board_config.h"
 
-device::Device *POZYX_I2C_interface(int bus);
+device::Device *POZYX_I2C_interface(int bus, const char *devname);
 
 class POZYX_I2C : public device::I2C
 {
 public:
-	POZYX_I2C(int bus);
+	POZYX_I2C(int bus, const char *devname);
 	virtual ~POZYX_I2C();
 
 	virtual int init();

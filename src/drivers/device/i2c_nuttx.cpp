@@ -244,7 +244,6 @@ I2C::transfer(i2c_msg_s *msgv, unsigned msgs)
 		msgv[i].addr = _address;
 	}
 
-
 	do {
 		ret = I2C_TRANSFER(_dev, msgv, msgs);
 

@@ -108,7 +108,8 @@ namespace pozyx
 			errx(1, "bus option already started");
 		}
 
-		device::Device *interface = bus.interface_constructor(bus.busnum);
+		device::Device *interface = bus.interface_constructor(bus.busnum, bus.devpath);
+
 
 		if (interface->init() != OK) {
 			delete interface;
@@ -116,16 +117,16 @@ namespace pozyx
 			return false;
 		}
 
-		bus.dev = new PozyxClass(bus.busid);
+		bus.dev = new PozyxClass(interface);
 		sleep(0.1);
 
-		if (bus.dev != nullptr && OK != bus.dev->begin()) {
+		if (bus.dev != nullptr && OK != bus.dev->begin(true, MODE_POLLING, POZYX_INT_MASK_ALL, POZYX_INT_PIN0)) {
 			delete bus.dev;
 			bus.dev = NULL;
 			return false;
 		}
 
-		int fd = open(bus.devpath, O_RDONLY);
+		int fd = px4_open(bus.devpath, O_RDONLY);
 		sleep(0.1);
 
 		if (fd < 0) {
@@ -187,20 +188,21 @@ namespace pozyx
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
 		int testread;
-		/*
+		
 		const char *path = bus.devpath;
 
-		int fd = open(path, O_RDONLY);
+
+		int fd = px4_open(path, O_RDONLY);
 
 		if (fd < 0) {
 			err(1, "%s open failed (try 'pozyx start')", path);			
 		}
-		*/
+		
 		uint8_t whoami = 0;
 		testread = bus.dev->regRead(POZYX_WHO_AM_I, &whoami, 1);
 		PX4_INFO("value of whoami is: 0x%x", whoami);
 
-		if (testread != OK) {
+		if (testread != POZYX_SUCCESS) {
 			err(1, "immediate read failed");
 		}
 		else {
