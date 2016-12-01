@@ -3,13 +3,13 @@
 #include "pozyx_i2c.h"
 
 device::Device *
-POZYX_I2C_interface(int bus)
+POZYX_I2C_interface(int bus, const char *devname)
 {
-	return new POZYX_I2C(bus);
+	return new POZYX_I2C(bus, devname);
 }
 
-POZYX_I2C::POZYX_I2C(int bus) :
-I2C("POZYX_I2C", nullptr, bus, POZYX_I2C_ADDRESS, 400000)
+POZYX_I2C::POZYX_I2C(int bus, const char *devname) :
+I2C("POZYX_I2C", devname, bus, POZYX_I2C_ADDRESS, 400000)
 {
 	_device_id.devid_s.devtype = DRV_POS_DEVTYPE_POZYX;
 }

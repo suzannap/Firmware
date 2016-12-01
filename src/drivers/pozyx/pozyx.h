@@ -294,12 +294,16 @@ protected:
 
 public:
     
-    POZYX_I2C _interface;
 
     //define constructors
-    PozyxClass(int bus);
+    PozyxClass(device::Device *interface);
     virtual ~PozyxClass();
 
+    device::Device *_interface;
+
+    //this class has pointer data members, so do not allow copying it
+    PozyxClass(const PozyxClass &);
+    PozyxClass operator=(const PozyxClass &);
 
 
     bool waitForFlag_safe(uint8_t interrupt_flag, int timeout_ms, uint8_t *interrupt = NULL);   

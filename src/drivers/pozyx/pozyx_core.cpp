@@ -11,16 +11,14 @@
 //#include <iostream>
 
     
-PozyxClass::PozyxClass(int bus) : 
+PozyxClass::PozyxClass(device::Device *interface) : 
     _mode(0),
     _interrupt(0),
     _hw_version(0),
     _fw_version(0),
-    _interface(bus)
+    _interface(interface)
     {
-      PX4_INFO("debug 20");
-      sleep(1);
-      //_interface = &POZYX_I2C_interface(bus);
+      //_interface = &POZYX_I2C_interface(bus, devname);
     }
 
 PozyxClass::~PozyxClass()
@@ -92,15 +90,16 @@ int PozyxClass::begin(bool print_result, int mode, int interrupts, int interrupt
   }
 
   // check if the mode parameter is valid
-  if((mode != MODE_POLLING) && (mode != MODE_INTERRUPT)) 
+  if((mode != MODE_POLLING) && (mode != MODE_INTERRUPT)) {
     return POZYX_FAILURE;
+  }
   
   // check if the pin is valid
-  if((interrupt_pin != 0) && (interrupt_pin != 1)) 
+  if((interrupt_pin != 0) && (interrupt_pin != 1)) {
     return POZYX_FAILURE;
+  }
 
 
-  //pozyx::start(POZYX_BUS_ALL); 
 
   // wait a bit until the pozyx board is up and running
   sleep(0.250);
@@ -117,18 +116,20 @@ int PozyxClass::begin(bool print_result, int mode, int interrupts, int interrupt
   if(regRead(POZYX_WHO_AM_I, regs, 3) == POZYX_FAILURE){
     return POZYX_FAILURE;
   }  
+
   whoami = regs[0];
   _fw_version = regs[1];
   _hw_version = regs[2]; 
 
-      if(print_result){
-        PX4_INFO("WhoAmI: 0x%x",whoami);
-        PX4_INFO("FW ver.: v%d.%d",((_fw_version&0xF0)>>4),(_fw_version&0x0F));
-        if(_fw_version < 0x10) {
-          PX4_INFO("please upgrade");
-        }
-        PX4_INFO("HW ver.: v%d.%d", ((_hw_version&0xE0)>>5),(_hw_version&0x1F));
-      }
+  if(print_result){
+    PX4_INFO("WhoAmI: 0x%x",whoami);
+    PX4_INFO("FW ver.: v%d.%d",((_fw_version&0xF0)>>4),(_fw_version&0x0F));
+    if(_fw_version < 0x10) {
+      PX4_INFO("please upgrade");
+    }
+    PX4_INFO("HW ver.: v%d.%d", ((_hw_version&0xE0)>>5),(_hw_version&0x1F));
+  }
+  sleep(1);
   // verify if the whoami is correct
   if(whoami != 0x43) {    
     // possibly the pozyx is not connected right. Also make sure the jumper of the boot pins is present.
@@ -205,16 +206,20 @@ int PozyxClass::regRead(uint8_t reg_address, uint8_t *pData, int size)
   for(i=0; i<n_runs; i++)
   {
     int offset = i*BUFFER_LENGTH;
-    reg = reg_address+offset;    
+    reg = reg_address+offset;
     
     if(i+1 != n_runs){  
-      status = _interface.read(reg, pData+offset, BUFFER_LENGTH);    
+      status = _interface->read(reg, (void*)(pData+offset), BUFFER_LENGTH);    
     }else{      
-      status = _interface.read(reg, pData+offset, size-offset);    
+      status = _interface->read(reg, (void*)(pData+offset), size-offset);    
     }    
   }
-  
-  return status;
+  if (status != OK) {
+    return POZYX_FAILURE;
+  }
+  else {
+    return POZYX_SUCCESS;
+  }
 }
 
 /**
@@ -229,18 +234,23 @@ int PozyxClass::regWrite(uint8_t reg_address, const uint8_t *pData, int size)
   int n_runs = ceil((float)size / BUFFER_LENGTH);
   int i;
   int status = 1;
+  uint8_t buf = *pData;
     
   for(i=0; i<n_runs; i++)
   {
     int offset = i*BUFFER_LENGTH;
     if(i+1 != n_runs){
-      status = _interface.write(reg_address+offset, (void*)(pData+offset), BUFFER_LENGTH);    
+      status = _interface->write(reg_address+offset, &buf, BUFFER_LENGTH);    
     }else{
-      status = _interface.write(reg_address+offset, (void*)(pData+offset), size-offset);    
+      status = _interface->write(reg_address+offset, &buf, size-offset);    
     }    
   }
-  
-  return status;
+  if (status != OK) {
+    return POZYX_FAILURE;
+  }
+  else {
+    return POZYX_SUCCESS;
+  }
 }
 
 /**
@@ -255,15 +265,16 @@ int PozyxClass::regFunction(uint8_t reg_address, uint8_t *params, int param_size
   uint8_t status;
   
    // first write some data with i2c and then read some data
-  status = _interface.write(reg_address, params, param_size);
-  if(status == POZYX_FAILURE){
-    return status;    
+  status = _interface->write(reg_address, params, param_size);
+  if(status != OK){
+    return POZYX_FAILURE;    
   }
   //copy returned data (which has been written to paramdata) to specified address  
   memcpy(&pData, &params, size);
   // the first byte that a function returns is always it's success indicator, so we simply pass this through
   memcpy(&status, &params, 1);
-  return status;
+
+  return POZYX_SUCCESS;
 }
 
 
