@@ -131,13 +131,15 @@ namespace pozyx
 		}
 
 		bus.dev = new PozyxClass(interface);
-		sleep(0.1);
+		usleep(100000);
 
-		if (bus.dev != nullptr && OK != bus.dev->begin(true, MODE_POLLING, POZYX_INT_MASK_ALL, POZYX_INT_PIN0)) {
+		/*
+		if (bus.dev != nullptr && POZYX_SUCCESS != bus.dev->begin(true)){//, MODE_POLLING, POZYX_INT_MASK_ALL, POZYX_INT_PIN0)) {
 			delete bus.dev;
 			bus.dev = NULL;
 			return false;
 		}
+		*/
 
 		int fd = px4_open(bus.devpath, O_RDONLY);
 		sleep(0.1);
@@ -146,10 +148,12 @@ namespace pozyx
 			return false;
 		}
 
+		/*
 		if (ioctl(fd, SENSORIOCSPOLLRATE, SENSOR_POLLRATE_DEFAULT) < 0) {
 			close(fd);
 			errx(1, "failed to setup poll rate");
 		}
+		*/
 
 		close(fd);
 
@@ -162,7 +166,6 @@ namespace pozyx
 	{
 		bool started = false;
 		unsigned i = 0;
-		sleep(1);
 		for (i = 0; i < NUM_BUS_OPTIONS; i++) {
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
 				//this device is already started
@@ -259,19 +262,20 @@ namespace pozyx
 
 		coordinates_t coordinates;
 
-		bus.dev->doPositioning(&coordinates, POZYX_3D);
-		if (print_result) {
-			PX4_INFO("Current position: %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
-		}
-		
-		struct att_pos_mocap_s pos;
-		memset(&pos, 0, sizeof(pos));
-		orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
-		pos.x = coordinates.x;
-		pos.y = coordinates.y;
-		pos.z = coordinates.z;
+		if (POZYX_SUCCESS == bus.dev->doPositioning(&coordinates, POZYX_3D)){
+			if (print_result) {
+				PX4_INFO("Current position: %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
+			}
+			
+			struct att_pos_mocap_s pos;
+			//memset(&pos, 0, sizeof(pos));
+			pos.x = coordinates.x;
+			pos.y = coordinates.y;
+			pos.z = coordinates.z;
+			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
 
-		orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+		}
 
 	}
 
@@ -279,16 +283,43 @@ namespace pozyx
 	config(enum POZYX_BUS busid)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
+
+		/*
 		UWB_settings_t tagconfig;
 		tagconfig.channel = 5;
-		tagconfig.bitrate = 2;
+		tagconfig.bitrate = 0;
 		tagconfig.prf = 2;
-		tagconfig.plen = 0x04;
-		if (bus.dev->setUWBChannel(5) == POZYX_SUCCESS){
+		tagconfig.plen = 0x08;
+		tagconfig.gain_db = 23;
+		if (bus.dev->setUWBChannel(tagconfig.channel) == POZYX_SUCCESS){
 			if (bus.dev->setUWBSettings(&tagconfig) == POZYX_SUCCESS){
 				PX4_INFO("UWB settings configured successfully");
 			}
 		}
+		*/
+		/*
+		if (bus.dev->setUWBChannel(tagconfig.channel, 0x684E) == POZYX_SUCCESS){
+			if (bus.dev->setUWBSettings(&tagconfig, 0x684E) == POZYX_SUCCESS){
+				PX4_INFO("UWB settings configured successfully");
+			}
+		}
+		//configure the anchors to match
+		if (bus.dev->setUWBChannel(tagconfig.channel, 0x682E) == POZYX_SUCCESS){
+			if (bus.dev->setUWBSettings(&tagconfig, 0x682E) == POZYX_SUCCESS){
+				PX4_INFO("UWB settings configured successfully");
+			}
+		}
+		if (bus.dev->setUWBChannel(tagconfig.channel, 0x6853) == POZYX_SUCCESS){
+			if (bus.dev->setUWBSettings(&tagconfig, 0x6853) == POZYX_SUCCESS){
+				PX4_INFO("UWB settings configured successfully");
+			}
+		}
+		if (bus.dev->setUWBChannel(tagconfig.channel, 0x6852) == POZYX_SUCCESS){
+			if (bus.dev->setUWBSettings(&tagconfig, 0x6852) == POZYX_SUCCESS){
+				PX4_INFO("UWB settings configured successfully");
+			}
+		}
+		*/
 
 		uint8_t num_anchors =4;
 		device_coordinates_t anchorlist[num_anchors] = {
@@ -308,8 +339,11 @@ namespace pozyx
 			if (bus.dev->getDeviceListSize(&num_anchors) == POZYX_SUCCESS) {
 				PX4_INFO("%d anchors configured", num_anchors);
 			}
+			if (bus.dev->saveConfiguration(POZYX_FLASH_ANCHOR_IDS) == POZYX_SUCCESS) {
+				PX4_INFO("%d anchors saved", num_anchors);
+			}
 		}
-		exit(0);
+		//exit(0);
 	}
 
 	void
@@ -336,11 +370,13 @@ pozyx_main(int argc, char *argv[])
 
 	//start/load driver and begin cycles
 	if (!strcmp(verb, "start")) {
+		pozyx::start(busid);
+		pozyx::config(busid);
+
 		if (thread_running) {
 			warnx("pozyx already running\n");
 			exit(0);
 		}
-		pozyx::start(busid);
 
 		thread_should_exit = false;
 		daemon_task = px4_task_spawn_cmd("pozyx_pub", 
@@ -405,7 +441,7 @@ pozyx_pub_main(int argc, char *argv[])
 
 	while (!thread_should_exit) {
 		pozyx::getposition(POZYX_BUS_ALL, false);
-		usleep(100000);
+		usleep(300000);
 	}
 
 	warnx("[pozyx_pub] exiting.\n");
