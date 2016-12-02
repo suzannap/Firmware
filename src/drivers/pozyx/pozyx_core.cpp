@@ -38,14 +38,14 @@ bool PozyxClass::waitForFlag(uint8_t interrupt_flag, int timeout_ms, uint8_t *in
 {
   std::time_t timer = time(nullptr);
   int status;
-  int timeout_s = timeout_ms/1000;
+  int timeout_s = 10*timeout_ms/1000; //10x all timeouts due to problems
   
   // stay in this loop until the event interrupt flag is set or until the the timer runs out
   while(time(nullptr)-timer < timeout_s)
   {
     // in polling mode, we insert a small delay such that we don't swamp the i2c bus
     if( _mode == MODE_POLLING ){
-      sleep(0.001);
+      usleep(1000);
     }
     
     if( (_interrupt == 1) || (_mode == MODE_POLLING))
@@ -102,7 +102,7 @@ int PozyxClass::begin(bool print_result, int mode, int interrupts, int interrupt
 
 
   // wait a bit until the pozyx board is up and running
-  sleep(0.250);
+  usleep(250000);
 
   //struct pozyx_bus_option &bus = pozyx::find_bus(POZYX_BUS_ALL);
   
@@ -185,7 +185,7 @@ int PozyxClass::begin(bool print_result, int mode, int interrupts, int interrupt
   }   
   
   // all done
-  sleep(POZYX_DELAY_LOCAL_WRITE/1000);
+  usleep(POZYX_DELAY_LOCAL_WRITE*1000);
   return status;
 }
 
@@ -532,7 +532,7 @@ int PozyxClass::sendTXBufferData(uint16_t destination)
   params[1] = (uint8_t)(destination>>8);
   params[2] = 0x06;    
   status = regFunction(POZYX_TX_SEND, (uint8_t *)&params, 3, NULL, 0);
-  sleep(POZYX_DELAY_LOCAL_FUNCTION/1000);
+  usleep(POZYX_DELAY_LOCAL_FUNCTION*1000);
 
   return status;
 }

@@ -23,3 +23,6 @@ set MIXER waterbee
 set PWM_OUT 1234
 set PWM_AUX_DISARMED 1000
 
+mavlink stream -r 50 -s ATT_POS_MOCAP -d /dev/ttyACM0
+
+
