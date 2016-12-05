@@ -409,7 +409,7 @@ pozyx_main(int argc, char *argv[])
 		pozyx::test(busid);
 		exit(0);
 	}
-		//configure pozyx
+	//configure pozyx
 	if (!strcmp(verb, "config")) {
 		pozyx::config(busid);
 		exit(0);
