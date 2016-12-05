@@ -2,10 +2,12 @@
 #
 # @name WaterBee
 #
-# @type boat
+# @type Tait custom
 #
 # @maintainer Suzanna Paulos <spaulos@taittowers.com>
 #
+
+sh /etc/init.d/rc.mc_defaults
 
 if [ $AUTOCNF == yes ]
 then
@@ -13,8 +15,6 @@ then
 	param set SYS_MC_EST_GROUP 1
 fi
 
-#configure this as a boat
-set MAV_TYPE 7
 
 #set mixer
 set MIXER waterbee
@@ -24,5 +24,4 @@ set PWM_OUT 1234
 set PWM_AUX_DISARMED 1000
 
 mavlink stream -r 50 -s ATT_POS_MOCAP -d /dev/ttyACM0
-
 
