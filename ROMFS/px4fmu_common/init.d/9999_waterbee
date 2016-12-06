@@ -55,5 +55,5 @@ fi
 #set mixer
 set MIXER waterbee
 
-
+#this needs to happen later -- called where extras.txt would be called in rcS
 #mavlink stream -r 5 -s ATT_POS_MOCAP -d /dev/ttyS1
