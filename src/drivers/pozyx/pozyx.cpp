@@ -276,9 +276,9 @@ namespace pozyx
 
 			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
 		}
-		if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation, POZYX_3D)){
+		if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
 			if (print_result) {
-				//PX4_INFO("Current orientation: %f  %f  %f  %f", poz_orientation.weight, poz_orientation.x, poz_orientation.y, poz_orientation.z);
+				PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
 			}
 			pos.q[0] = poz_orientation.weight;
 			pos.q[1] = poz_orientation.x;
