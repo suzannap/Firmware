@@ -260,23 +260,34 @@ namespace pozyx
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
 
-		coordinates_t coordinates;
+		coordinates_t poz_coordinates;
+		quaternion_t poz_orientation;
+		struct att_pos_mocap_s pos;
 
-		if (POZYX_SUCCESS == bus.dev->doPositioning(&coordinates, POZYX_3D)){
+		if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates, POZYX_3D)){
 			if (print_result) {
-				PX4_INFO("Current position: %d   %d   %d", coordinates.x, coordinates.y, coordinates.z);
+				PX4_INFO("Current position: %d   %d   %d", poz_coordinates.x, poz_coordinates.y, poz_coordinates.z);
 			}
 			
-			struct att_pos_mocap_s pos;
-			//memset(&pos, 0, sizeof(pos));
-			pos.x = coordinates.x;
-			pos.y = coordinates.y;
-			pos.z = coordinates.z;
+			pos.x = poz_coordinates.x;
+			pos.y = poz_coordinates.y;
+			pos.z = poz_coordinates.z;
 			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
 
 			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
 		}
+		if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation, POZYX_3D)){
+			if (print_result) {
+				//PX4_INFO("Current orientation: %f  %f  %f  %f", poz_orientation.weight, poz_orientation.x, poz_orientation.y, poz_orientation.z);
+			}
+			pos.q[0] = poz_orientation.weight;
+			pos.q[1] = poz_orientation.x;
+			pos.q[2] = poz_orientation.y;
+			pos.q[3] = poz_orientation.z;
+			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
 
+			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+		}
 	}
 
 	void
