@@ -22,7 +22,8 @@ then
 	param set PWM_RATE 400
 
 	param set ATT_EXT_HDG_M 2
-	param set SYS_MC_EST_GROUP 1
+	param set SYS_MC_EST_GROUP 2
+	param set COM_RC_IN_MODE 2
 
 	#set the offboard control switch to an unused channel, and give it a thresholed so it's always on
 	param set RC_MAP_OFFB_SW 18
@@ -55,5 +56,4 @@ fi
 set MIXER waterbee
 
 
-mavlink stream -r 50 -s ATT_POS_MOCAP -d /dev/ttyACM0
-
+#mavlink stream -r 5 -s ATT_POS_MOCAP -d /dev/ttyS1
