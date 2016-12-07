@@ -8,7 +8,7 @@
 #
 
 #start required apps:
-ekf2 start
+sh /etc/init.d/rc.mc_defaults
 pozyx start
 
 if [ $AUTOCNF == yes ]
@@ -51,9 +51,6 @@ then
 
 fi
 
-
-mc_att_control start
-mc_pos_control start
 
 # This is the gimbal pass mixer
 set MIXER_AUX pass

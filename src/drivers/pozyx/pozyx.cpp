@@ -71,6 +71,8 @@
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
 
+#include <drivers/drv_hrt.h>
+
 static bool thread_should_exit = false;		/**< daemon exit flag */
 static bool thread_running = false;		/**< daemon status flag */
 static int daemon_task;				/**< Handle of daemon task / thread */
@@ -269,12 +271,9 @@ namespace pozyx
 				PX4_INFO("Current position: %d   %d   %d", poz_coordinates.x, poz_coordinates.y, poz_coordinates.z);
 			}
 			
-			pos.x = poz_coordinates.x;
-			pos.y = poz_coordinates.y;
-			pos.z = poz_coordinates.z;
-			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
-
-			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+			pos.x = poz_coordinates.x/1000.0;
+			pos.y = poz_coordinates.y/1000.0;
+			pos.z = poz_coordinates.z/1000.0;
 		}
 		if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
 			if (print_result) {
@@ -284,10 +283,10 @@ namespace pozyx
 			pos.q[1] = poz_orientation.x;
 			pos.q[2] = poz_orientation.y;
 			pos.q[3] = poz_orientation.z;
-			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
-
-			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
 		}
+			pos.timestamp = hrt_absolute_time();//*1000000;
+			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
+			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
 	}
 
 	void
