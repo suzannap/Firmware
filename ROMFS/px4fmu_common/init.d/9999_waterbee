@@ -13,6 +13,9 @@ pozyx start
 
 if [ $AUTOCNF == yes ]
 then
+	#each vehicle needs unique sysID
+	param set MAV_SYS_ID 1
+
 	param set PWM_DISARMED 0
 	param set PWM_MIN 1000
 	param set PWM_MAX 2000
@@ -21,20 +24,26 @@ then
 	param set COM_RC_IN_MODE 1
 
 	param set ATT_EXT_HDG_M 2
-	param set SYS_MC_EST_GROUP 2
+	param set INAV_DISAB_MOCAP 0
 
-	#enable mocap data for positoin and yaw
-	param set EKF_AID_MASK 24
+	param set SYS_MC_EST_GROUP 0
 
-	#position of Pixhawk in frame
-	param set EKF2_IMU_POS_X 0
-	param set EKF2_IMU_POS_Y 0
-	param set EKF2_IMU_POS_Z 0
+	#EKF2 setup
+	if [ $SYS_MC_EST_GROUP == 2 ]
+	then
+		param set EKF2_AID_MASK 24
+		param set EKF2_USE_MOCAP 1
 
-	#position of Pozyx in frame
-	param set EKF2_EV_POS_X 0
-	param set EKF2_EV_POS_Y 0
-	param set EKF2_EV_POS_Z 0
+		#position of Pixhawk in frame
+		param set EKF2_IMU_POS_X 0
+		param set EKF2_IMU_POS_Y 0
+		param set EKF2_IMU_POS_Z 0
+
+		#position of Pozyx in frame
+		param set EKF2_EV_POS_X 0
+		param set EKF2_EV_POS_Y 0
+		param set EKF2_EV_POS_Z 0
+	fi
 
 	#set the offboard control switch to an unused channel, and give it a thresholed so it's always on
 	param set RC_MAP_OFFB_SW 18
@@ -43,11 +52,8 @@ then
 fi
 
 
-# tell the mixer to use parameters for these instead
-set PWM_RATE p:PWM_RATE
-set PWM_DISARMED p:PWM_DISARMED
-set PWM_MIN p:PWM_MIN
-set PWM_MAX p:PWM_MAX
+mc_att_control start
+mc_pos_control start
 
 # This is the gimbal pass mixer
 set MIXER_AUX pass
@@ -57,14 +63,9 @@ set PWM_AUX_DISARMED 1500
 set PWM_AUX_MIN 1000
 set PWM_AUX_MAX 2000
 
-if param compare PWM_DISARMED 0
-then
-	param set PWM_DISARMED 900
-fi
-
-
 #set mixer
 set MIXER waterbee
+
 
 #this needs to happen later -- called where extras.txt would be called in rcS
 #non-standard MAVLink messages
