@@ -270,19 +270,21 @@ namespace pozyx
 			if (print_result) {
 				PX4_INFO("Current position: %d   %d   %d", poz_coordinates.x, poz_coordinates.y, poz_coordinates.z);
 			}
-			
+			//change position from NWU to NED
 			pos.x = poz_coordinates.x/1000.0;
-			pos.y = poz_coordinates.y/1000.0;
-			pos.z = poz_coordinates.z/1000.0;
+			pos.y = -poz_coordinates.y/1000.0;
+			pos.z = -poz_coordinates.z/1000.0;
 		}
 		if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
 			if (print_result) {
 				PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
 			}
-			pos.q[0] = poz_orientation.weight;
-			pos.q[1] = poz_orientation.x;
-			pos.q[2] = poz_orientation.y;
-			pos.q[3] = poz_orientation.z;
+			//change orientation from NWU to NED rotate 180 degrees about x
+			//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
+			pos.q[0] = -poz_orientation.x;
+			pos.q[1] = poz_orientation.weight;
+			pos.q[2] = poz_orientation.z;
+			pos.q[3] = -poz_orientation.x;
 		}
 			pos.timestamp = hrt_absolute_time();//*1000000;
 			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
