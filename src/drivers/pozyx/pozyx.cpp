@@ -65,6 +65,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <math.h>
 
 #include <nuttx/sched.h>
 
@@ -76,14 +77,18 @@
 static bool thread_should_exit = false;		/**< daemon exit flag */
 static bool thread_running = false;		/**< daemon status flag */
 static int daemon_task;				/**< Handle of daemon task / thread */
+static int count = 0;
 
 enum POZYX_BUS {
 	POZYX_BUS_ALL = 0,
 	POZYX_BUS_I2C_INTERNAL,
-	POZYX_BUS_I2C_EXTERNAL
+	POZYX_BUS_I2C_EXTERNAL,
+	POZYX_BUS_I2C_ALT_INTERNAL,
+	POZYX_BUS_I2C_ALT_EXTERNAL
 };
 
 int pozyx_pub_main(int argc, char *argv[]);
+int pozyx_pub_main_2(int argc, char *argv[]);
 extern "C" __EXPORT int pozyx_main(int argc, char *argv[]);
 /****************namespace**********************************************/
 namespace pozyx
@@ -95,22 +100,25 @@ namespace pozyx
 		const char *devpath;
 		POZYX_constructor interface_constructor;
 		uint8_t busnum;
+		uint8_t devaddr;
 		PozyxClass *dev;
 	} bus_options[] = {
-		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, NULL },
-		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, NULL },
+		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, POZYX_I2C_ADDRESS, NULL },
+		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, POZYX_I2C_ADDRESS, NULL },
+		{ POZYX_BUS_I2C_ALT_INTERNAL, "/dev/pozyx_alt_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, POZYX_I2C_ADDRESS_ALT, NULL },
+		{ POZYX_BUS_I2C_ALT_EXTERNAL, "/dev/pozyx_alt_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, POZYX_I2C_ADDRESS_ALT, NULL },
 	};
 		
 	//#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
 	const int NUM_BUS_OPTIONS = sizeof(bus_options)/sizeof(bus_options[0]);
 
-	void 	start(enum POZYX_BUS busid);
+	int 	start(enum POZYX_BUS busid);
 	bool 	start_bus(struct pozyx_bus_option &bus);
 	struct 	pozyx_bus_option &find_bus(enum POZYX_BUS busid);
-	void 	test(enum POZYX_BUS busid);
-	void 	config(enum POZYX_BUS busid);
-	void	reset(enum POZYX_BUS busid);
-	void	getposition(enum POZYX_BUS busid, bool print_result);
+	void 	test(enum POZYX_BUS busid, int count);
+	void 	config(enum POZYX_BUS busid, int count);
+	void	reset(enum POZYX_BUS busid, int count);
+	void	getposition(enum POZYX_BUS busid, int count, bool print_result);
 	int 	calibrate(enum POZYX_BUS busid);
 	void	usage();
 
@@ -123,7 +131,7 @@ namespace pozyx
 			errx(1, "bus option already started");
 		}
 
-		device::Device *interface = bus.interface_constructor(bus.busnum, bus.devpath);
+		device::Device *interface = bus.interface_constructor(bus.busnum, bus.devpath, bus.devaddr);
 
 
 		if (interface->init() != OK) {
@@ -135,27 +143,13 @@ namespace pozyx
 		bus.dev = new PozyxClass(interface);
 		usleep(100000);
 
-		/*
-		if (bus.dev != nullptr && POZYX_SUCCESS != bus.dev->begin(true)){//, MODE_POLLING, POZYX_INT_MASK_ALL, POZYX_INT_PIN0)) {
-			delete bus.dev;
-			bus.dev = NULL;
-			return false;
-		}
-		*/
 
 		int fd = px4_open(bus.devpath, O_RDONLY);
-		sleep(0.1);
+		usleep(100000);
 
 		if (fd < 0) {
 			return false;
 		}
-
-		/*
-		if (ioctl(fd, SENSORIOCSPOLLRATE, SENSOR_POLLRATE_DEFAULT) < 0) {
-			close(fd);
-			errx(1, "failed to setup poll rate");
-		}
-		*/
 
 		close(fd);
 
@@ -163,10 +157,10 @@ namespace pozyx
 	}
 
 	//start the driver
-	void
+	int
 	start(enum POZYX_BUS busid)
 	{
-		bool started = false;
+		int started = 0;
 		unsigned i = 0;
 		for (i = 0; i < NUM_BUS_OPTIONS; i++) {
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
@@ -179,12 +173,11 @@ namespace pozyx
 				continue;
 			}
 
-
-			started |= start_bus(bus_options[i]);
+			if (start_bus(bus_options[i])) {
+				started ++;
+			}
 		}
-		if (!started) {
-			//exit(1);
-		}
+		return started;
 	}
 
 	//find bus structure for a busid
@@ -202,7 +195,7 @@ namespace pozyx
 
 	//basic functional tests
 	void
-	test(enum POZYX_BUS busid)
+	test(enum POZYX_BUS busid, int count)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
 		int testread;
@@ -252,86 +245,75 @@ namespace pozyx
 	}
 
 	void
-	reset(enum POZYX_BUS busid)
+	reset(enum POZYX_BUS busid, int count)
 	{
 		exit(0);
 	}
 
 	void
-	getposition(enum POZYX_BUS busid, bool print_result)
+	getposition(enum POZYX_BUS busid, int count, bool print_result)
 	{
+
+		coordinates_t poz_coordinates[count];
+		quaternion_t poz_orientation[count];
+		struct att_pos_mocap_s pos;
 		struct pozyx_bus_option &bus = find_bus(busid);
 
-		coordinates_t poz_coordinates;
-		quaternion_t poz_orientation;
-		struct att_pos_mocap_s pos;
+		pos.x = 0;
+		pos.y = 0;
+		pos.z = 0;
+		for (int i=0; i<count; i++){
+			if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates[i], POZYX_3D)){
+				if (print_result) {
+					PX4_INFO("Current position tag %d: %d   %d   %d", i, poz_coordinates[i].x, poz_coordinates[i].y, poz_coordinates[i].z);
+				}
+			}
+			if (count == 1) {
+				if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation[i])){
+					if (print_result) {
+						PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation[i].weight, (double)poz_orientation[i].x, (double)poz_orientation[i].y, (double)poz_orientation[i].z);
+					}
+				}
+			}			
+			pos.x += poz_coordinates[i].x;
+			pos.y += poz_coordinates[i].y;
+			pos.z += poz_coordinates[i].z;
+		}	
+		//change position from NWU to NED and from m to mm
+		pos.x /= (count*1000);
+		pos.y /= (-count*1000);
+		pos.z /= (-count*1000);
 
-		if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates, POZYX_3D)){
-			if (print_result) {
-				PX4_INFO("Current position: %d   %d   %d", poz_coordinates.x, poz_coordinates.y, poz_coordinates.z);
-			}
-			//change position from NWU to NED
-			pos.x = poz_coordinates.x/1000.0;
-			pos.y = -poz_coordinates.y/1000.0;
-			pos.z = -poz_coordinates.z/1000.0;
-		}
-		if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
-			if (print_result) {
-				PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
-			}
+		if (count == 1) {
 			//change orientation from NWU to NED rotate 180 degrees about x
 			//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
-			pos.q[0] = -poz_orientation.x;
-			pos.q[1] = poz_orientation.weight;
-			pos.q[2] = poz_orientation.z;
-			pos.q[3] = -poz_orientation.x;
+			pos.q[0] = -poz_orientation[0].x;
+			pos.q[1] = poz_orientation[0].weight;
+			pos.q[2] = poz_orientation[0].z;
+			pos.q[3] = -poz_orientation[0].y;
 		}
-			pos.timestamp = hrt_absolute_time();//*1000000;
-			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
-			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+		else {
+			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
+
+			if (print_result) {
+				PX4_INFO("Current yaw: %f deg.", (yaw * 180 / 3.1415));
+			}
+			pos.q[0] = cos(yaw/2);
+			pos.q[1] = 0;
+			pos.q[2] = 0;
+			pos.q[3] = sin(yaw/2);
+		}	
+		pos.timestamp = hrt_absolute_time();
+		orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
+		orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
 	}
 
 	void
-	config(enum POZYX_BUS busid)
+	config(enum POZYX_BUS busid, int count)
 	{
 		struct pozyx_bus_option &bus = find_bus(busid);
 
-		/*
-		UWB_settings_t tagconfig;
-		tagconfig.channel = 5;
-		tagconfig.bitrate = 0;
-		tagconfig.prf = 2;
-		tagconfig.plen = 0x08;
-		tagconfig.gain_db = 23;
-		if (bus.dev->setUWBChannel(tagconfig.channel) == POZYX_SUCCESS){
-			if (bus.dev->setUWBSettings(&tagconfig) == POZYX_SUCCESS){
-				PX4_INFO("UWB settings configured successfully");
-			}
-		}
-		*/
-		/*
-		if (bus.dev->setUWBChannel(tagconfig.channel, 0x684E) == POZYX_SUCCESS){
-			if (bus.dev->setUWBSettings(&tagconfig, 0x684E) == POZYX_SUCCESS){
-				PX4_INFO("UWB settings configured successfully");
-			}
-		}
-		//configure the anchors to match
-		if (bus.dev->setUWBChannel(tagconfig.channel, 0x682E) == POZYX_SUCCESS){
-			if (bus.dev->setUWBSettings(&tagconfig, 0x682E) == POZYX_SUCCESS){
-				PX4_INFO("UWB settings configured successfully");
-			}
-		}
-		if (bus.dev->setUWBChannel(tagconfig.channel, 0x6853) == POZYX_SUCCESS){
-			if (bus.dev->setUWBSettings(&tagconfig, 0x6853) == POZYX_SUCCESS){
-				PX4_INFO("UWB settings configured successfully");
-			}
-		}
-		if (bus.dev->setUWBChannel(tagconfig.channel, 0x6852) == POZYX_SUCCESS){
-			if (bus.dev->setUWBSettings(&tagconfig, 0x6852) == POZYX_SUCCESS){
-				PX4_INFO("UWB settings configured successfully");
-			}
-		}
-		*/
+
 
 		uint8_t num_anchors =4;
 		device_coordinates_t anchorlist[num_anchors] = {
@@ -382,21 +364,34 @@ pozyx_main(int argc, char *argv[])
 
 	//start/load driver and begin cycles
 	if (!strcmp(verb, "start")) {
-		pozyx::start(busid);
-		pozyx::config(busid);
+		count = pozyx::start(busid);
+		if (count > 0) {
+			pozyx::config(busid, count);
 
-		if (thread_running) {
-			warnx("pozyx already running\n");
-			exit(0);
+			if (thread_running) {
+				warnx("pozyx already running\n");
+				exit(0);
+			}
+
+			thread_should_exit = false;
+			if (count == 1) {
+				daemon_task = px4_task_spawn_cmd("pozyx_pub", 
+												SCHED_DEFAULT, 
+												SCHED_PRIORITY_DEFAULT, 
+												2000, 
+												pozyx_pub_main,
+												(argv) ? (char *const *)&argv[2] : (char *const *)NULL);
+			}
+			if (count == 2) {
+				daemon_task = px4_task_spawn_cmd("pozyx_pub_2", 
+												SCHED_DEFAULT, 
+												SCHED_PRIORITY_DEFAULT, 
+												2000, 
+												pozyx_pub_main_2,
+												(argv) ? (char *const *)&argv[2] : (char *const *)NULL);
+			}
+
 		}
-
-		thread_should_exit = false;
-		daemon_task = px4_task_spawn_cmd("pozyx_pub", 
-											SCHED_DEFAULT, 
-											SCHED_PRIORITY_DEFAULT, 
-											2000, 
-											pozyx_pub_main,
-											(argv) ? (char *const *)&argv[2] : (char *const *)NULL);
 		exit(0);
 	}
 
@@ -418,25 +413,24 @@ pozyx_main(int argc, char *argv[])
 
 	//test driver/device
 	if (!strcmp(verb, "test")) {
-		pozyx::test(busid);
+		pozyx::test(busid, count);
 		exit(0);
 	}
 	//configure pozyx
 	if (!strcmp(verb, "config")) {
-		pozyx::config(busid);
+		pozyx::config(busid, count);
 		exit(0);
 	}
 
 	//fetch positions
 	if (!strcmp(verb, "getposition")) {
-		pozyx::getposition(busid, true);
+		pozyx::getposition(busid, count, true);
 		exit(0);
 	}
 
-		//debug
+	//debug
 	if (!strcmp(verb, "debug")) {
-		PX4_INFO("bus options[0]: %d, %s, %d.... size: %d", pozyx::bus_options[0].busid, pozyx::bus_options[0].devpath, pozyx::bus_options[0].busnum, sizeof(pozyx::bus_options));
-		PX4_INFO("num bus options: %d", pozyx::NUM_BUS_OPTIONS);
+
 		exit(0);
 	}
 
@@ -452,7 +446,23 @@ pozyx_pub_main(int argc, char *argv[])
 	thread_running = true;
 
 	while (!thread_should_exit) {
-		pozyx::getposition(POZYX_BUS_ALL, false);
+		pozyx::getposition(POZYX_BUS_ALL, 1, false);
+		usleep(300000);
+	}
+
+	warnx("[pozyx_pub] exiting.\n");
+	thread_running = false;	
+	return 0;
+}
+
+int 
+pozyx_pub_main_2(int argc, char *argv[])
+{
+	warnx("[pozyx_pub] starting\n");
+	thread_running = true;
+
+	while (!thread_should_exit) {
+		pozyx::getposition(POZYX_BUS_ALL, 2, false);
 		usleep(300000);
 	}
 
