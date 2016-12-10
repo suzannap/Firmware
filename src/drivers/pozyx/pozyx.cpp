@@ -114,7 +114,7 @@ namespace pozyx
 
 	int 	start(enum POZYX_BUS busid);
 	bool 	start_bus(struct pozyx_bus_option &bus);
-	struct 	pozyx_bus_option &find_bus(enum POZYX_BUS busid);
+	struct 	pozyx_bus_option &find_bus(enum POZYX_BUS busid, unsigned startid);
 	void 	test(enum POZYX_BUS busid, int count);
 	void 	config(enum POZYX_BUS busid, int count);
 	void	reset(enum POZYX_BUS busid, int count);
@@ -181,9 +181,9 @@ namespace pozyx
 	}
 
 	//find bus structure for a busid
-	struct pozyx_bus_option &find_bus(enum POZYX_BUS busid)
+	struct pozyx_bus_option &find_bus(enum POZYX_BUS busid, unsigned startid)
 	{
-		for (unsigned i=0; i < NUM_BUS_OPTIONS; i++) {
+		for (unsigned i=startid; i < NUM_BUS_OPTIONS; i++) {
 			if ((busid == POZYX_BUS_ALL ||
 				busid == bus_options[i].busid) && bus_options[i].dev != NULL) {
 				return bus_options[i];
@@ -197,7 +197,7 @@ namespace pozyx
 	void
 	test(enum POZYX_BUS busid, int count)
 	{
-		struct pozyx_bus_option &bus = find_bus(busid);
+		struct pozyx_bus_option &bus = find_bus(busid, 0);
 		int testread;
 		
 		const char *path = bus.devpath;
@@ -255,29 +255,27 @@ namespace pozyx
 	{
 
 		coordinates_t poz_coordinates[count];
-		quaternion_t poz_orientation[count];
+		quaternion_t poz_orientation;
 		struct att_pos_mocap_s pos;
-		struct pozyx_bus_option &bus = find_bus(busid);
+		unsigned startid = 0;
+		struct pozyx_bus_option &bus = find_bus(busid, startid);
 
 		pos.x = 0;
 		pos.y = 0;
 		pos.z = 0;
 		for (int i=0; i<count; i++){
+
 			if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates[i], POZYX_3D)){
 				if (print_result) {
 					PX4_INFO("Current position tag %d: %d   %d   %d", i, poz_coordinates[i].x, poz_coordinates[i].y, poz_coordinates[i].z);
 				}
 			}
-			if (count == 1) {
-				if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation[i])){
-					if (print_result) {
-						PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation[i].weight, (double)poz_orientation[i].x, (double)poz_orientation[i].y, (double)poz_orientation[i].z);
-					}
-				}
-			}			
 			pos.x += poz_coordinates[i].x;
 			pos.y += poz_coordinates[i].y;
 			pos.z += poz_coordinates[i].z;
+
+			startid = bus.busid + 1;
+			bus = find_bus(busid, startid);
 		}	
 		//change position from NWU to NED and from m to mm
 		pos.x /= (count*1000);
@@ -285,18 +283,23 @@ namespace pozyx
 		pos.z /= (-count*1000);
 
 		if (count == 1) {
-			//change orientation from NWU to NED rotate 180 degrees about x
-			//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
-			pos.q[0] = -poz_orientation[0].x;
-			pos.q[1] = poz_orientation[0].weight;
-			pos.q[2] = poz_orientation[0].z;
-			pos.q[3] = -poz_orientation[0].y;
+			if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
+				if (print_result) {
+					PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
+				}
+				//change orientation from NWU to NED rotate 180 degrees about x
+				//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
+				pos.q[0] = -poz_orientation.x;
+				pos.q[1] = poz_orientation.weight;
+				pos.q[2] = poz_orientation.z;
+				pos.q[3] = -poz_orientation.y;		
+			}			
 		}
-		else {
+		else if (count > 1) {
 			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
 
 			if (print_result) {
-				PX4_INFO("Current yaw: %f deg.", (yaw * 180 / 3.1415));
+				PX4_INFO("Current yaw: %f deg.", (yaw * 180 / 3.14159));
 			}
 			pos.q[0] = cos(yaw/2);
 			pos.q[1] = 0;
@@ -311,31 +314,35 @@ namespace pozyx
 	void
 	config(enum POZYX_BUS busid, int count)
 	{
-		struct pozyx_bus_option &bus = find_bus(busid);
+		unsigned startid = 0;
+		struct pozyx_bus_option &bus = find_bus(busid, startid);
 
-
-
-		uint8_t num_anchors =4;
-		device_coordinates_t anchorlist[num_anchors] = {
-			{0x684E, 1, {0, 962, 1247}},
-			{0x682E, 1, {0, 4293, 2087}},
-			{0x6853, 1, {6746, 4888, 1559}},
-			{0x6852, 1, {4689, 0, 2491}}
-		};
-		if (bus.dev->clearDevices() == POZYX_SUCCESS){
-			for (int i = 0; i < num_anchors; i++) {
-				if (bus.dev->addDevice(anchorlist[i]) != POZYX_SUCCESS) {
-					PX4_INFO("failed to add anchor");
-					exit(1);
+		for (int i=0; i<count; i++){
+			uint8_t num_anchors =4;
+			device_coordinates_t anchorlist[num_anchors] = {
+				{0x684E, 1, {0, 962, 1247}},
+				{0x682E, 1, {0, 4293, 2087}},
+				{0x6853, 1, {6746, 4888, 1559}},
+				{0x6852, 1, {4689, 0, 2491}}
+			};
+			if (bus.dev->clearDevices() == POZYX_SUCCESS){
+				for (int j = 0; j < num_anchors; j++) {
+					if (bus.dev->addDevice(anchorlist[j]) != POZYX_SUCCESS) {
+						PX4_INFO("failed to add anchor");
+						exit(1);
+					}
+					PX4_INFO("Anchor 0x%x successfully added at (%d, %d, %d)", anchorlist[j].network_id, anchorlist[j].pos.x, anchorlist[j].pos.y, anchorlist[j].pos.z);
 				}
-				PX4_INFO("Anchor 0x%x successfully added at (%d, %d, %d)", anchorlist[i].network_id, anchorlist[i].pos.x, anchorlist[i].pos.y, anchorlist[i].pos.z);
+				if (bus.dev->getDeviceListSize(&num_anchors) == POZYX_SUCCESS) {
+					PX4_INFO("%d anchors configured", num_anchors);
+				}
+				if (bus.dev->saveConfiguration(POZYX_FLASH_ANCHOR_IDS) == POZYX_SUCCESS) {
+					PX4_INFO("%d anchors saved", num_anchors);
+				}
 			}
-			if (bus.dev->getDeviceListSize(&num_anchors) == POZYX_SUCCESS) {
-				PX4_INFO("%d anchors configured", num_anchors);
-			}
-			if (bus.dev->saveConfiguration(POZYX_FLASH_ANCHOR_IDS) == POZYX_SUCCESS) {
-				PX4_INFO("%d anchors saved", num_anchors);
-			}
+
+			startid = bus.busid + 1;
+			bus = find_bus(busid, startid);
 		}
 		//exit(0);
 	}

@@ -5,22 +5,6 @@ This file defines mixers suitable for controlling a Water Bee boat using
 PX4FMU. The configuration assumes the 4 ESCs are connected to PX4FMU
 servo outputs 1-4 and the fountain to aux 1. 
 
-Inputs to the mixer come from channel group 0 (vehicle attitude), channels 0
-(roll), 1 (pitch) and 3 (thrust).
-
- mixers
--------------
-Group 0 is attitude -- roll, pitch, yaw
-Group 1 in BlueROv terms -- throttle, forward, strafe??
-
-TODO:
-switch for no roll/pitch
-accomodate fountains (ideally on aux)
-use position x,y,z instead of throttle
-figure out how to make this default and/or appear in QGC
-
-
-
 
 Output 1 (front right)
 ------------------------
