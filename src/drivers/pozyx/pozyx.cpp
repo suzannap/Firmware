@@ -102,11 +102,12 @@ namespace pozyx
 		uint8_t busnum;
 		uint8_t devaddr;
 		PozyxClass *dev;
+		uint8_t index;
 	} bus_options[] = {
-		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, POZYX_I2C_ADDRESS, NULL },
-		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, POZYX_I2C_ADDRESS, NULL },
-		{ POZYX_BUS_I2C_ALT_INTERNAL, "/dev/pozyx_alt_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, POZYX_I2C_ADDRESS_ALT, NULL },
-		{ POZYX_BUS_I2C_ALT_EXTERNAL, "/dev/pozyx_alt_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, POZYX_I2C_ADDRESS_ALT, NULL },
+		{ POZYX_BUS_I2C_INTERNAL, "/dev/pozyx_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, POZYX_I2C_ADDRESS, NULL , 0},
+		{ POZYX_BUS_I2C_EXTERNAL, "/dev/pozyx_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, POZYX_I2C_ADDRESS, NULL, 1 },
+		{ POZYX_BUS_I2C_ALT_INTERNAL, "/dev/pozyx_alt_int", &POZYX_I2C_interface, PX4_I2C_BUS_ONBOARD, POZYX_I2C_ADDRESS_ALT, NULL, 2 },
+		{ POZYX_BUS_I2C_ALT_EXTERNAL, "/dev/pozyx_alt_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, POZYX_I2C_ADDRESS_ALT, NULL, 3 },
 	};
 		
 	//#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
@@ -177,6 +178,7 @@ namespace pozyx
 				started ++;
 			}
 		}
+		PX4_INFO("%d Pozyx tags found", started);
 		return started;
 	}
 
@@ -184,8 +186,7 @@ namespace pozyx
 	struct pozyx_bus_option &find_bus(enum POZYX_BUS busid, unsigned startid)
 	{
 		for (unsigned i=startid; i < NUM_BUS_OPTIONS; i++) {
-			if ((busid == POZYX_BUS_ALL ||
-				busid == bus_options[i].busid) && bus_options[i].dev != NULL) {
+			if (((busid == POZYX_BUS_ALL) || (busid == bus_options[i].busid)) && (bus_options[i].dev != NULL)) {
 				return bus_options[i];
 			}
 		}
@@ -197,51 +198,56 @@ namespace pozyx
 	void
 	test(enum POZYX_BUS busid, int count)
 	{
-		struct pozyx_bus_option &bus = find_bus(busid, 0);
+		unsigned startid = 0;
+		struct pozyx_bus_option &bus = find_bus(busid, startid);
 		int testread;
 		
-		const char *path = bus.devpath;
 
+		for (int i=0; i<count; i++){	
+			bus = find_bus(busid, startid);
+			startid = bus.index + 1;	
 
-		int fd = px4_open(path, O_RDONLY);
+			const char *path = bus.devpath;
+			int fd = px4_open(path, O_RDONLY);
 
-		if (fd < 0) {
-			err(1, "%s open failed (try 'pozyx start')", path);			
-		}
-		
-		uint8_t whoami = 0;
-		testread = bus.dev->regRead(POZYX_WHO_AM_I, &whoami, 1);
-		PX4_INFO("value of whoami is: 0x%x", whoami);
-
-		if (testread != POZYX_SUCCESS) {
-			err(1, "immediate read failed");
-		}
-		else {
-			if (whoami == POZYX_WHOAMI_EXPECTED){
-				PX4_INFO("Who Am I Check Successful");
+			if (fd < 0) {
+				err(1, "%s open failed (try 'pozyx start')", path);			
 			}
-			else{
-				PX4_INFO("Who Am I Check Failed: 0x%x",whoami);
+			
+			uint8_t whoami = 0;
+			testread = bus.dev->regRead(POZYX_WHO_AM_I, &whoami, 1);
+			PX4_INFO("value of whoami is: 0x%x", whoami);
+
+			if (testread != POZYX_SUCCESS) {
+				err(1, "immediate read failed");
 			}
-		}
-		//test a function call by blinking LED3
-		uint8_t funcbuf[100];
-		funcbuf[0] = 0x44;
+			else {
+				if (whoami == POZYX_WHOAMI_EXPECTED){
+					PX4_INFO("Who Am I Check Successful");
+				}
+				else{
+					PX4_INFO("Who Am I Check Failed: 0x%x",whoami);
+				}
+			}
+			//test a function call by blinking LED3
+			uint8_t funcbuf[100];
+			funcbuf[0] = 0x44;
 
-		bus.dev->regFunction(POZYX_LED_CTRL, (uint8_t *)&funcbuf[0], 1, (uint8_t *)&funcbuf[0], 1);
-		if (funcbuf[0] != 1) {
-			err(1, "Function test failed");
-		}
-		PX4_INFO("LED3 turned On... ");
-		sleep(2);
-		funcbuf[0] = 0x40;
-		bus.dev->regFunction(POZYX_LED_CTRL, (uint8_t *)&funcbuf[0], 1, (uint8_t *)&funcbuf[0], 1);
-		if (funcbuf[0] != 1) {
-			err(1, "Function test failed");
-		}
-		PX4_INFO("LED3 turned Off");
+			bus.dev->regFunction(POZYX_LED_CTRL, (uint8_t *)&funcbuf[0], 1, (uint8_t *)&funcbuf[0], 1);
+			if (funcbuf[0] != 1) {
+				err(1, "Function test failed");
+			}
+			PX4_INFO("LED3 turned On... ");
+			sleep(2);
+			funcbuf[0] = 0x40;
+			bus.dev->regFunction(POZYX_LED_CTRL, (uint8_t *)&funcbuf[0], 1, (uint8_t *)&funcbuf[0], 1);
+			if (funcbuf[0] != 1) {
+				err(1, "Function test failed");
+			}
+			PX4_INFO("LED3 turned Off");
 
-		errx(0, "PASS");
+			PX4_INFO("Tag %d PASS", i);
+		}
 	}
 
 	void
@@ -259,11 +265,22 @@ namespace pozyx
 		struct att_pos_mocap_s pos;
 		unsigned startid = 0;
 		struct pozyx_bus_option &bus = find_bus(busid, startid);
+		PX4_INFO("busid = %d", bus.busid);
+		PX4_INFO("busnum = %d", bus.busnum);
+		PX4_INFO("index = %d", bus.index);
+		PX4_INFO("startid = %d", startid);
 
 		pos.x = 0;
 		pos.y = 0;
 		pos.z = 0;
+
 		for (int i=0; i<count; i++){
+			bus = find_bus(busid, startid);
+			startid = bus.index + 1;
+			PX4_INFO("busid = %d", bus.busid);
+			PX4_INFO("busnum = %d", bus.busnum);
+			PX4_INFO("index = %d", bus.index);
+			PX4_INFO("startid = %d", startid);
 
 			if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates[i], POZYX_3D)){
 				if (print_result) {
@@ -274,8 +291,6 @@ namespace pozyx
 			pos.y += poz_coordinates[i].y;
 			pos.z += poz_coordinates[i].z;
 
-			startid = bus.busid + 1;
-			bus = find_bus(busid, startid);
 		}	
 		//change position from NWU to NED and from m to mm
 		pos.x /= (count*1000);
@@ -318,6 +333,13 @@ namespace pozyx
 		struct pozyx_bus_option &bus = find_bus(busid, startid);
 
 		for (int i=0; i<count; i++){
+			bus = find_bus(busid, startid);
+			startid = bus.index + 1;
+			PX4_INFO("busid = %d", bus.busid);
+			PX4_INFO("busnum = %d", bus.busnum);
+			PX4_INFO("index = %d", bus.index);
+			PX4_INFO("startid = %d", startid);
+
 			uint8_t num_anchors =4;
 			device_coordinates_t anchorlist[num_anchors] = {
 				{0x684E, 1, {0, 962, 1247}},
@@ -340,9 +362,6 @@ namespace pozyx
 					PX4_INFO("%d anchors saved", num_anchors);
 				}
 			}
-
-			startid = bus.busid + 1;
-			bus = find_bus(busid, startid);
 		}
 		//exit(0);
 	}
