@@ -11,51 +11,6 @@
  *
  * I2C interface for Pozyx Tag
  */
-/*
-#include <px4_config.h>
-
-#include <drivers/device/i2c.h>
-
-#include <sys/types.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <semaphore.h>
-#include <string.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <errno.h>
-#include <stdio.h>
-#include <math.h>
-#include <unistd.h>
-
-#include <nuttx/arch.h>
-#include <nuttx/wqueue.h>
-#include <nuttx/clock.h>
-
-#include <board_config.h>
-
-#include <systemlib/perf_counter.h>
-#include <systemlib/err.h>
-
-#include <drivers/drv_mag.h>
-#include <drivers/drv_hrt.h>
-#include <drivers/device/ringbuffer.h>
-#include <drivers/drv_device.h>
-
-#include <uORB/uORB.h>
-#include <uORB/topics/att_pos_mocap.h>
-
-#include <float.h>
-#include <getopt.h>
-#include <lib/conversion/rotation.h>
-
-#include "pozyx.h"
-//#include "pozyx_i2c.cpp"
-
-//#include <iostream>
-//using namespace std;
-*/
 
 #include <uORB/uORB.h>
 #include <uORB/topics/att_pos_mocap.h>
