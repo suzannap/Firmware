@@ -117,8 +117,7 @@ namespace pozyx
 	start(enum POZYX_BUS busid)
 	{
 		int started = 0;
-		unsigned i = 0;
-		for (i = 0; i < NUM_BUS_OPTIONS; i++) {
+		for (unsigned i = 0; i < NUM_BUS_OPTIONS; i++) {
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
 				//this device is already started
 				continue;
@@ -154,12 +153,11 @@ namespace pozyx
 	test(enum POZYX_BUS busid, int count)
 	{
 		unsigned startid = 0;
-		struct pozyx_bus_option &bus = find_bus(busid, startid);
 		int testread;
 		
 
 		for (int i=0; i<count; i++){	
-			bus = find_bus(busid, startid);
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
 			startid = bus.index + 1;	
 
 			const char *path = bus.devpath;
@@ -201,7 +199,7 @@ namespace pozyx
 			}
 			PX4_INFO("LED3 turned Off");
 
-			PX4_INFO("Tag %d PASS", i);
+			PX4_INFO("Tag %d PASS", bus.index);
 		}
 	}
 
@@ -219,14 +217,13 @@ namespace pozyx
 		quaternion_t poz_orientation;
 		struct att_pos_mocap_s pos;
 		unsigned startid = 0;
-		struct pozyx_bus_option &bus = find_bus(busid, startid);
 
 		pos.x = 0;
 		pos.y = 0;
 		pos.z = 0;
 
 		for (int i=0; i<count; i++){
-			bus = find_bus(busid, startid);
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
 			startid = bus.index + 1;
 
 			if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates[i], POZYX_3D)){
@@ -238,26 +235,25 @@ namespace pozyx
 			pos.y += poz_coordinates[i].y;
 			pos.z += poz_coordinates[i].z;
 
+			if (count == 1) {
+				if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
+					if (print_result) {
+						PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
+					}
+					//change orientation from NWU to NED rotate 180 degrees about x
+					//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
+					pos.q[0] = -poz_orientation.x;
+					pos.q[1] = poz_orientation.weight;
+					pos.q[2] = poz_orientation.z;
+					pos.q[3] = -poz_orientation.y;		
+				}			
+			}
 		}	
 		//change position from NWU to NED and from m to mm
 		pos.x /= (count*1000);
 		pos.y /= (-count*1000);
 		pos.z /= (-count*1000);
-
-		if (count == 1) {
-			if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
-				if (print_result) {
-					PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
-				}
-				//change orientation from NWU to NED rotate 180 degrees about x
-				//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
-				pos.q[0] = -poz_orientation.x;
-				pos.q[1] = poz_orientation.weight;
-				pos.q[2] = poz_orientation.z;
-				pos.q[3] = -poz_orientation.y;		
-			}			
-		}
-		else if (count > 1) {
+		if (count > 1) {
 			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
 
 			if (print_result) {
@@ -268,6 +264,7 @@ namespace pozyx
 			pos.q[2] = 0;
 			pos.q[3] = sin(yaw/2);
 		}	
+
 		pos.timestamp = hrt_absolute_time();
 		orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
 		orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
@@ -277,10 +274,9 @@ namespace pozyx
 	config(enum POZYX_BUS busid, int count)
 	{
 		unsigned startid = 0;
-		struct pozyx_bus_option &bus = find_bus(busid, startid);
 
 		for (int i=0; i<count; i++){
-			bus = find_bus(busid, startid);
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
 			startid = bus.index + 1;
 
 			uint8_t num_anchors =4;
@@ -398,19 +394,6 @@ pozyx_main(int argc, char *argv[])
 
 	//debug
 	if (!strcmp(verb, "debug")) {
-		unsigned startid = 0;
-		struct pozyx::pozyx_bus_option &bus = pozyx::find_bus(busid, startid);
-		PX4_INFO("busid index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_ALL, startid);
-		PX4_INFO("pozyx_bus_all index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_INTERNAL, startid);
-		PX4_INFO("pozyx_bus_int index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_EXTERNAL, startid);
-		PX4_INFO("pozyx_bus_ext index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_ALT_INTERNAL, startid);
-		PX4_INFO("pozyx_bus_alt_int index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_ALT_EXTERNAL, startid);
-		PX4_INFO("pozyx_bus_alt_ext index: %d", bus.index);
 		exit(0);
 	}
 
