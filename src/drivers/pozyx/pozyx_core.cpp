@@ -18,7 +18,6 @@ PozyxClass::PozyxClass(device::Device *interface) :
     _fw_version(0),
     _interface(interface)
     {
-      //_interface = &POZYX_I2C_interface(bus, devname);
     }
 
 PozyxClass::~PozyxClass()
