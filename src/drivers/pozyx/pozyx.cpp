@@ -280,11 +280,17 @@ namespace pozyx
 			startid = bus.index + 1;
 
 			uint8_t num_anchors =4;
-			device_coordinates_t anchorlist[num_anchors] = {
+			/*device_coordinates_t anchorlist[num_anchors] = {
 				{0x684E, 1, {0, 962, 1247}},
 				{0x682E, 1, {0, 4293, 2087}},
 				{0x6853, 1, {6746, 4888, 1559}},
 				{0x6852, 1, {4689, 0, 2491}}
+			};*/
+			device_coordinates_t anchorlist[num_anchors] = {
+				{0x684E, 1, {3479, -8725, 1479}},
+				{0x682E, 1, {19025, -15030, 1603}},
+				{0x6853, 1, {13334, 0, 1665}},
+				{0x6852, 1, {5896, 0, 1614}}
 			};
 			if (bus.dev->clearDevices() == POZYX_SUCCESS){
 				for (int j = 0; j < num_anchors; j++) {
@@ -426,7 +432,7 @@ pozyx_pub_main_2(int argc, char *argv[])
 
 	while (!thread_should_exit) {
 		pozyx::getposition(POZYX_BUS_ALL, 2, false);
-		usleep(300000);
+		usleep(500000);
 	}
 
 	warnx("[pozyx_pub] exiting.\n");
