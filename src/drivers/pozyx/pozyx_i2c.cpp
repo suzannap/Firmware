@@ -59,7 +59,7 @@ POZYX_I2C::probe()
 int 
 POZYX_I2C::write(unsigned address, void *data, unsigned count)
 {
-	uint8_t buf[32];
+	uint8_t buf[128];
 	if (sizeof(buf)< (count+1)) {
 		return -EIO;
 	}
