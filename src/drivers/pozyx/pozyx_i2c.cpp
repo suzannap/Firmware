@@ -1,5 +1,4 @@
 //pozyx_i2c.cpp
-//to ensure unique definition
 #include "pozyx_i2c.h"
 
 device::Device *

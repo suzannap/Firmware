@@ -90,6 +90,7 @@ enum POZYX_BUS {
 int pozyx_pub_main(int argc, char *argv[]);
 int pozyx_pub_main_2(int argc, char *argv[]);
 extern "C" __EXPORT int pozyx_main(int argc, char *argv[]);
+
 /****************namespace**********************************************/
 namespace pozyx
 {
@@ -110,7 +111,6 @@ namespace pozyx
 		{ POZYX_BUS_I2C_ALT_EXTERNAL, "/dev/pozyx_alt_ext", &POZYX_I2C_interface, PX4_I2C_BUS_EXPANSION, POZYX_I2C_ADDRESS_ALT, NULL, 3 },
 	};
 		
-	//#define NUM_BUS_OPTIONS (sizeof(bus_options)/sizeof(bus_options[0]))
 	const int NUM_BUS_OPTIONS = sizeof(bus_options)/sizeof(bus_options[0]);
 
 	int 	start(enum POZYX_BUS busid);
@@ -190,7 +190,7 @@ namespace pozyx
 				return bus_options[i];
 			}
 		}
-		errx(1, "bus %u not started", (unsigned)busid);
+		errx(1, "No active bus found");
 	}
 
 
@@ -265,10 +265,6 @@ namespace pozyx
 		struct att_pos_mocap_s pos;
 		unsigned startid = 0;
 		struct pozyx_bus_option &bus = find_bus(busid, startid);
-		PX4_INFO("busid = %d", bus.busid);
-		PX4_INFO("busnum = %d", bus.busnum);
-		PX4_INFO("index = %d", bus.index);
-		PX4_INFO("startid = %d", startid);
 
 		pos.x = 0;
 		pos.y = 0;
@@ -277,14 +273,10 @@ namespace pozyx
 		for (int i=0; i<count; i++){
 			bus = find_bus(busid, startid);
 			startid = bus.index + 1;
-			PX4_INFO("busid = %d", bus.busid);
-			PX4_INFO("busnum = %d", bus.busnum);
-			PX4_INFO("index = %d", bus.index);
-			PX4_INFO("startid = %d", startid);
 
 			if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates[i], POZYX_3D)){
 				if (print_result) {
-					PX4_INFO("Current position tag %d: %d   %d   %d", i, poz_coordinates[i].x, poz_coordinates[i].y, poz_coordinates[i].z);
+					PX4_INFO("Current position tag %d: %d   %d   %d", bus.index, poz_coordinates[i].x, poz_coordinates[i].y, poz_coordinates[i].z);
 				}
 			}
 			pos.x += poz_coordinates[i].x;
@@ -335,10 +327,6 @@ namespace pozyx
 		for (int i=0; i<count; i++){
 			bus = find_bus(busid, startid);
 			startid = bus.index + 1;
-			PX4_INFO("busid = %d", bus.busid);
-			PX4_INFO("busnum = %d", bus.busnum);
-			PX4_INFO("index = %d", bus.index);
-			PX4_INFO("startid = %d", startid);
 
 			uint8_t num_anchors =4;
 			device_coordinates_t anchorlist[num_anchors] = {
@@ -363,7 +351,6 @@ namespace pozyx
 				}
 			}
 		}
-		//exit(0);
 	}
 
 	void
@@ -456,7 +443,19 @@ pozyx_main(int argc, char *argv[])
 
 	//debug
 	if (!strcmp(verb, "debug")) {
-
+		unsigned startid = 0;
+		struct pozyx::pozyx_bus_option &bus = pozyx::find_bus(busid, startid);
+		PX4_INFO("busid index: %d", bus.index);
+		bus = pozyx::find_bus(POZYX_BUS_ALL, startid);
+		PX4_INFO("pozyx_bus_all index: %d", bus.index);
+		bus = pozyx::find_bus(POZYX_BUS_I2C_INTERNAL, startid);
+		PX4_INFO("pozyx_bus_int index: %d", bus.index);
+		bus = pozyx::find_bus(POZYX_BUS_I2C_EXTERNAL, startid);
+		PX4_INFO("pozyx_bus_ext index: %d", bus.index);
+		bus = pozyx::find_bus(POZYX_BUS_I2C_ALT_INTERNAL, startid);
+		PX4_INFO("pozyx_bus_alt_int index: %d", bus.index);
+		bus = pozyx::find_bus(POZYX_BUS_I2C_ALT_EXTERNAL, startid);
+		PX4_INFO("pozyx_bus_alt_ext index: %d", bus.index);
 		exit(0);
 	}
 
