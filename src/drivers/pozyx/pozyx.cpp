@@ -199,12 +199,11 @@ namespace pozyx
 	test(enum POZYX_BUS busid, int count)
 	{
 		unsigned startid = 0;
-		struct pozyx_bus_option &bus = find_bus(busid, startid);
 		int testread;
 		
 
 		for (int i=0; i<count; i++){	
-			bus = find_bus(busid, startid);
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
 			startid = bus.index + 1;	
 
 			const char *path = bus.devpath;
@@ -264,14 +263,13 @@ namespace pozyx
 		quaternion_t poz_orientation;
 		struct att_pos_mocap_s pos;
 		unsigned startid = 0;
-		struct pozyx_bus_option &bus = find_bus(busid, startid);
 
 		pos.x = 0;
 		pos.y = 0;
-		pos.z = 0;
+		pos.z = 1;
 
 		for (int i=0; i<count; i++){
-			bus = find_bus(busid, startid);
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
 			startid = bus.index + 1;
 
 			if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates[i], POZYX_3D)){
@@ -281,29 +279,31 @@ namespace pozyx
 			}
 			pos.x += poz_coordinates[i].x;
 			pos.y += poz_coordinates[i].y;
-			pos.z += poz_coordinates[i].z;
+			//pos.z += poz_coordinates[i].z;
+
+			if (count == 1) {
+				if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
+					if (print_result) {
+						PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
+					}
+					//change orientation from NWU to NED rotate 180 degrees about x
+					//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
+					pos.q[0] = poz_orientation.weight;
+					pos.q[1] = poz_orientation.x;
+					pos.q[2] = poz_orientation.y;
+					pos.q[3] = poz_orientation.z;		
+				}			
+			}
 
 		}	
 		//change position from NWU to NED and from m to mm
 		pos.x /= (count*1000);
 		pos.y /= (-count*1000);
-		pos.z /= (-count*1000);
+		//pos.z /= (-count*1000);
 
-		if (count == 1) {
-			if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
-				if (print_result) {
-					PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
-				}
-				//change orientation from NWU to NED rotate 180 degrees about x
-				//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
-				pos.q[0] = -poz_orientation.x;
-				pos.q[1] = poz_orientation.weight;
-				pos.q[2] = poz_orientation.z;
-				pos.q[3] = -poz_orientation.y;		
-			}			
-		}
-		else if (count > 1) {
-			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
+
+		if (count > 1) {
+			double yaw = atan ((poz_coordinates[0].y - poz_coordinates[1].y)/(poz_coordinates[0].x - poz_coordinates[1].x));
 
 			if (print_result) {
 				PX4_INFO("Current yaw: %f deg.", (yaw * 180 / 3.14159));
@@ -322,18 +322,25 @@ namespace pozyx
 	config(enum POZYX_BUS busid, int count)
 	{
 		unsigned startid = 0;
-		struct pozyx_bus_option &bus = find_bus(busid, startid);
 
-		for (int i=0; i<count; i++){
-			bus = find_bus(busid, startid);
+		for (int i=0; i<count; i++){			
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
 			startid = bus.index + 1;
 
 			uint8_t num_anchors =4;
+			/* //R&D test area
 			device_coordinates_t anchorlist[num_anchors] = {
 				{0x684E, 1, {0, 962, 1247}},
 				{0x682E, 1, {0, 4293, 2087}},
 				{0x6853, 1, {6746, 4888, 1559}},
 				{0x6852, 1, {4689, 0, 2491}}
+			};
+			*/
+			device_coordinates_t anchorlist[num_anchors] = {
+				{0x684E, 1, {3479, -8725, 1479}},
+				{0x682E, 1, {16086, -6544, 1796}},
+				{0x6853, 1, {13334, 0, 1665}},
+				{0x6852, 1, {5896, 0, 1614}}
 			};
 			if (bus.dev->clearDevices() == POZYX_SUCCESS){
 				for (int j = 0; j < num_anchors; j++) {
@@ -488,7 +495,7 @@ pozyx_pub_main_2(int argc, char *argv[])
 
 	while (!thread_should_exit) {
 		pozyx::getposition(POZYX_BUS_ALL, 2, false);
-		usleep(300000);
+		usleep(1000000);
 	}
 
 	warnx("[pozyx_pub] exiting.\n");
