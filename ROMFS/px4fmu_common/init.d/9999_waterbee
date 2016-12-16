@@ -23,7 +23,7 @@ param set PWM_MIN 1060
 param set PWM_MAX 1860
 param set PWM_RATE 400
 
-param set COM_RC_IN_MODE 2
+param set COM_RC_IN_MODE 1
 
 param set ATT_EXT_HDG_M 2
 param set INAV_DISAB_MOCAP 0

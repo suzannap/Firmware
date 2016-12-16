@@ -120,7 +120,9 @@ namespace pozyx
 	void 	config(enum POZYX_BUS busid, int count);
 	void	reset(enum POZYX_BUS busid, int count);
 	void	getposition(enum POZYX_BUS busid, int count, bool print_result);
-	int 	calibrate(enum POZYX_BUS busid);
+	void	addanchor(enum POZYX_BUS busid, int count, uint16_t network_id, int32_t x, int32_t y, int32_t z);
+	void	clearanchors(enum POZYX_BUS busid, int count);
+
 	void	usage();
 
 
@@ -275,6 +277,10 @@ namespace pozyx
 			if (POZYX_SUCCESS == bus.dev->doPositioning(&poz_coordinates[i], POZYX_3D)){
 				if (print_result) {
 					PX4_INFO("Current position tag %d: %d   %d   %d", bus.index, poz_coordinates[i].x, poz_coordinates[i].y, poz_coordinates[i].z);
+					pos_error_t poz_error;
+					if (POZYX_SUCCESS == bus.dev->getPositionError(&poz_error)){
+						PX4_INFO("Position covariance: x(%d) y(%d) z(%d) xy(%d) xz(%d) yz(%d)", poz_error.x, poz_error.y, poz_error.z, poz_error.xy, poz_error.xz, poz_error.yz);
+					}
 				}
 			}
 			pos.x += poz_coordinates[i].x;
@@ -361,9 +367,53 @@ namespace pozyx
 	}
 
 	void
+	addanchor(enum POZYX_BUS busid, int count, uint16_t network_id, int32_t x, int32_t y, int32_t z)
+	{
+		unsigned startid = 0;
+		PX4_INFO("Adding anchor 0x%x at coordinates (%d, %d, %d)...", network_id, x, y, z);
+
+		for (int i=0; i<count; i++){			
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
+			startid = bus.index + 1;
+			device_coordinates_t anchor = {network_id, 1, {x, -y, -z}};
+			if (bus.dev->addDevice(anchor) == POZYX_SUCCESS){
+				if (bus.dev->saveConfiguration(POZYX_FLASH_ANCHOR_IDS) == POZYX_SUCCESS) {
+					PX4_INFO("Anchor 0x%x added to tag %d", network_id, bus.index);
+				}
+			}
+		}
+	}
+
+	void
+	clearanchors(enum POZYX_BUS busid, int count)
+	{
+		unsigned startid = 0;
+
+		for (int i=0; i<count; i++){			
+			struct pozyx_bus_option &bus = find_bus(busid, startid);
+			startid = bus.index + 1;
+
+			if (bus.dev->clearDevices() == POZYX_SUCCESS){
+				if (bus.dev->saveConfiguration(POZYX_FLASH_ANCHOR_IDS) == POZYX_SUCCESS) {
+					PX4_INFO("All anchors cleared from tag %d", bus.index);
+				}
+			}
+		}
+	}
+
+	void
 	usage()
 	{
-		PX4_INFO("Give description of how to use pozyx from cmd line");
+		warnx("usage: try 'start', 'stop', 'status', 'config', 'test'");
+		warnx("clearanchors");
+		warnx("addanchor [anchorID] [x position] [y position] [z position]");
+		warnx("getanchors");
+		warnx("autoanchors");
+		warnx("getposition");
+		warnx("getuwb");
+		warnx("setuwb [bitrate] [prf] [plen] [gain_db] (see www.pozyx.io/Documentation/Tutorials/uwb_settings for more info");
+		warnx("resettofactory");
+
 	}
 
 } //namespace
@@ -372,21 +422,17 @@ namespace pozyx
 int
 pozyx_main(int argc, char *argv[])
 {
-	int ch;
+	//int ch;
 	enum POZYX_BUS busid = POZYX_BUS_ALL;
+	int testnum = 0;
 
-	while ((ch = getopt(argc, argv, "XISR:CT")) != EOF) {
-		pozyx::usage();
-		exit(0);
-	}
-
-	const char *verb = argv[optind];
+	const char *verb = argv[1];
 
 	//start/load driver and begin cycles
 	if (!strcmp(verb, "start")) {
 		count = pozyx::start(busid);
 		if (count > 0) {
-			pozyx::config(busid, count);
+			//pozyx::config(busid, count);
 
 			if (thread_running) {
 				warnx("pozyx already running\n");
@@ -450,24 +496,44 @@ pozyx_main(int argc, char *argv[])
 
 	//debug
 	if (!strcmp(verb, "debug")) {
-		unsigned startid = 0;
-		struct pozyx::pozyx_bus_option &bus = pozyx::find_bus(busid, startid);
-		PX4_INFO("busid index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_ALL, startid);
-		PX4_INFO("pozyx_bus_all index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_INTERNAL, startid);
-		PX4_INFO("pozyx_bus_int index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_EXTERNAL, startid);
-		PX4_INFO("pozyx_bus_ext index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_ALT_INTERNAL, startid);
-		PX4_INFO("pozyx_bus_alt_int index: %d", bus.index);
-		bus = pozyx::find_bus(POZYX_BUS_I2C_ALT_EXTERNAL, startid);
-		PX4_INFO("pozyx_bus_alt_ext index: %d", bus.index);
+
+		for (int i = 1; i < argc; i++) {
+			if (strcmp(argv[i], "-N") == 0) {
+				if (argc > i + 1) {
+					testnum = atoi(argv[i + 1]);
+				}
+			}
+		}
+		PX4_INFO("testnumber = %d", testnum);
+		exit(0);
+	}
+
+	//clear anchors	
+	if (!strcmp(verb, "clearanchors")) {
+		pozyx::clearanchors(busid, count);
+		exit(0);
+	}
+
+	//add an anchor
+	if (!strcmp(verb, "addanchor")) {
+		if (argc == 6) {
+			uint16_t id = strtol(argv[2], NULL, 16);
+			uint32_t x = atoi(argv[3]);
+			uint32_t y = atoi(argv[4]);
+			uint32_t z = atoi(argv[5]);
+			pozyx::addanchor(busid, count, id, x, y, z);
+		}
+		else {			
+			PX4_INFO("wrong number of arguments to add anchor. Requires ID(hex), X, Y, Z (mm)");
+			PX4_INFO("example: pozyx addanchor A23D 100 200 300");
+			exit(1);
+		}
 		exit(0);
 	}
 
 
-	errx(1, "Unrecognized command. Try start, stop, status, test, config, getposition");
+	pozyx::usage();;
+	exit(0);
 }
 
 
