@@ -76,12 +76,16 @@ namespace pozyx
 	void	reset(enum POZYX_BUS busid, int count);
 	void	getposition(enum POZYX_BUS busid, int count, bool print_result);
 	void	addanchor(enum POZYX_BUS busid, int count, uint16_t network_id, int32_t x, int32_t y, int32_t z);
+<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
 	void	autoanchors(enum POZYX_BUS busid, int count);
 	void	getanchors(enum POZYX_BUS busid, int count);
 	void	clearanchors(enum POZYX_BUS busid, int count);
 	void	getuwb(enum POZYX_BUS busid, int count);
 	void	setuwb(enum POZYX_BUS busid, int count, uint8_t bitrate, uint8_t prf, uint8_t plen, float gain_db);
 	void	resettofactory(enum POZYX_BUS busid, int count);
+=======
+	void	clearanchors(enum POZYX_BUS busid, int count);
+>>>>>>> adding pozyx service functions
 
 	void	usage();
 
@@ -380,6 +384,7 @@ namespace pozyx
 	}
 
 	void
+<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
 	getanchors(enum POZYX_BUS busid, int count)
 	{
 		unsigned startid = 0;
@@ -493,6 +498,20 @@ namespace pozyx
 		warnx("getuwb");
 		warnx("setuwb [bitrate] [prf] [plen] [gain_db] (see www.pozyx.io/Documentation/Tutorials/uwb_settings for more info)");
 		warnx("resettofactory");
+=======
+	usage()
+	{
+		warnx("usage: try 'start', 'stop', 'status', 'config', 'test'");
+		warnx("clearanchors");
+		warnx("addanchor [anchorID] [x position] [y position] [z position]");
+		warnx("getanchors");
+		warnx("autoanchors");
+		warnx("getposition");
+		warnx("getuwb");
+		warnx("setuwb [bitrate] [prf] [plen] [gain_db] (see www.pozyx.io/Documentation/Tutorials/uwb_settings for more info");
+		warnx("resettofactory");
+
+>>>>>>> adding pozyx service functions
 	}
 
 } //namespace
@@ -511,7 +530,7 @@ pozyx_main(int argc, char *argv[])
 	if (!strcmp(verb, "start")) {
 		count = pozyx::start(busid);
 		if (count > 0) {
-			pozyx::config(busid, count);
+			//pozyx::config(busid, count);
 
 			if (thread_running) {
 				warnx("pozyx already running\n");
@@ -575,6 +594,10 @@ pozyx_main(int argc, char *argv[])
 
 	//debug
 	if (!strcmp(verb, "debug")) {
+<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
+=======
+
+>>>>>>> adding pozyx service functions
 		for (int i = 1; i < argc; i++) {
 			if (strcmp(argv[i], "-N") == 0) {
 				if (argc > i + 1) {
@@ -606,6 +629,7 @@ pozyx_main(int argc, char *argv[])
 			PX4_INFO("example: pozyx addanchor A23D 100 200 300");
 			exit(1);
 		}
+<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
 		exit(0);
 	}
 	//get anchors	
@@ -641,6 +665,8 @@ pozyx_main(int argc, char *argv[])
 	//reset to factory settings
 	if (!strcmp(verb, "resettofactory")) {
 		pozyx::resettofactory(busid, count);
+=======
+>>>>>>> adding pozyx service functions
 		exit(0);
 	}
 

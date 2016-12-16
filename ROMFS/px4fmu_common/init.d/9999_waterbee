@@ -27,11 +27,15 @@ param set PWM_MIN 1060
 param set PWM_MAX 1860
 param set PWM_RATE 400
 
+<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
 <<<<<<< ae960a03efd9336d6f96a3ef2ca16f5399ea95c7
 param set COM_RC_IN_MODE 1
 =======
 param set COM_RC_IN_MODE 2
 >>>>>>> EOD 12/14
+=======
+param set COM_RC_IN_MODE 1
+>>>>>>> adding pozyx service functions
 
 param set ATT_EXT_HDG_M 2
 param set INAV_DISAB_MOCAP 0
