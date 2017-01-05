@@ -397,6 +397,7 @@ int PozyxClass::setUWBSettings(UWB_settings_t *UWB_settings, uint16_t remote_id)
   // first set the uwb channel, bitrate, prf and plen, this will set gain to the default gain computed for these settings
   if(remote_id == NULL){
     status = regWrite(POZYX_UWB_CHANNEL, tmp, 3);
+
     usleep(2 * POZYX_DELAY_LOCAL_WRITE*1000);    
   }else{
     status = remoteRegWrite(remote_id, POZYX_UWB_CHANNEL, tmp, 3);
@@ -461,8 +462,9 @@ int PozyxClass::setTxPower(float txgain_dB, uint16_t remote_id)
   }
 
   // give the pozyx system some time to change the power
-  if(status == POZYX_SUCCESS)
+  if(status == POZYX_SUCCESS){
     usleep(1000);
+  }
 
   return status;
 }
@@ -1265,8 +1267,9 @@ int PozyxClass::getAnchorIds(uint16_t anchors[],int size, uint16_t remote_id)
   // verify that the device list has at least the requested number of devices
   uint8_t list_size = 0;
   status = getDeviceListSize(&list_size, remote_id);
-  if(status == POZYX_FAILURE || list_size < size)
+  if(status == POZYX_FAILURE || list_size < size){
     return POZYX_FAILURE;
+  }
 
   // read out all the devices in the device list
   uint16_t devices[list_size];
