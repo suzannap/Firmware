@@ -76,16 +76,22 @@ namespace pozyx
 	void	reset(enum POZYX_BUS busid, int count);
 	void	getposition(enum POZYX_BUS busid, int count, bool print_result);
 	void	addanchor(enum POZYX_BUS busid, int count, uint16_t network_id, int32_t x, int32_t y, int32_t z);
+<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
 <<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
+=======
+>>>>>>> january debugging
 	void	autoanchors(enum POZYX_BUS busid, int count);
 	void	getanchors(enum POZYX_BUS busid, int count);
 	void	clearanchors(enum POZYX_BUS busid, int count);
 	void	getuwb(enum POZYX_BUS busid, int count);
 	void	setuwb(enum POZYX_BUS busid, int count, uint8_t bitrate, uint8_t prf, uint8_t plen, float gain_db);
 	void	resettofactory(enum POZYX_BUS busid, int count);
+<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
 =======
 	void	clearanchors(enum POZYX_BUS busid, int count);
 >>>>>>> adding pozyx service functions
+=======
+>>>>>>> january debugging
 
 	void	usage();
 
@@ -384,7 +390,10 @@ namespace pozyx
 	}
 
 	void
+<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
 <<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
+=======
+>>>>>>> january debugging
 	getanchors(enum POZYX_BUS busid, int count)
 	{
 		unsigned startid = 0;
@@ -489,6 +498,9 @@ namespace pozyx
 	void
 	usage()
 	{
+
+	usage()
+	{
 		warnx("usage: try 'start', 'stop', 'status', 'config', 'test'");
 		warnx("Debug functions:");
 		warnx("clearanchors");
@@ -498,20 +510,6 @@ namespace pozyx
 		warnx("getuwb");
 		warnx("setuwb [bitrate] [prf] [plen] [gain_db] (see www.pozyx.io/Documentation/Tutorials/uwb_settings for more info)");
 		warnx("resettofactory");
-=======
-	usage()
-	{
-		warnx("usage: try 'start', 'stop', 'status', 'config', 'test'");
-		warnx("clearanchors");
-		warnx("addanchor [anchorID] [x position] [y position] [z position]");
-		warnx("getanchors");
-		warnx("autoanchors");
-		warnx("getposition");
-		warnx("getuwb");
-		warnx("setuwb [bitrate] [prf] [plen] [gain_db] (see www.pozyx.io/Documentation/Tutorials/uwb_settings for more info");
-		warnx("resettofactory");
-
->>>>>>> adding pozyx service functions
 	}
 
 } //namespace
@@ -667,6 +665,41 @@ pozyx_main(int argc, char *argv[])
 		pozyx::resettofactory(busid, count);
 =======
 >>>>>>> adding pozyx service functions
+		exit(0);
+	}
+	//get anchors	
+	if (!strcmp(verb, "getanchors")) {
+		pozyx::getanchors(busid, count);
+		exit(0);
+	}
+
+	//set UWB parameters
+	if (!strcmp(verb, "setuwb")) {
+		if (argc == 6) {
+			uint8_t bitrate = atoi(argv[2]);
+			uint8_t prf = atoi(argv[3]);
+			uint8_t plen = strtol(argv[4], NULL, 16);
+			float gain_db = atoi(argv[5])/2.0;
+			pozyx::setuwb(busid, count, bitrate, prf, plen, gain_db);
+		}
+		else {			
+			PX4_INFO("wrong number of arguments to configure UWB settings. Requires bitrate, prf, plen, gain_db");
+			PX4_INFO("Possible value of bitrate:   0: 110kbits/s    1: 850kbits/s    2: 6.8Mbits/s");
+			PX4_INFO("Possible value of prf:   1: 16MHz    2: 64MHz");
+			PX4_INFO("Possible value of plen: 04,14,24,34,08,18,28,0C for 64-4096 symbols. See Pozyx documentation.");
+			PX4_INFO("Possible value of gain_db: integer values 0-67, will be halved to range of 0-33.5dB");
+			exit(1);
+		}
+		exit(0);
+	}
+	//get UWB parameters	
+	if (!strcmp(verb, "getuwb")) {
+		pozyx::getuwb(busid, count);
+		exit(0);
+	}
+	//reset to factory settings
+	if (!strcmp(verb, "resettofactory")) {
+		pozyx::resettofactory(busid, count);
 		exit(0);
 	}
 

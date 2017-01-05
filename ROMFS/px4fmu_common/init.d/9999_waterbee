@@ -14,12 +14,17 @@ pozyx start
 if [ $AUTOCNF == yes ]
 then
 	#each vehicle needs unique sysID
+<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
 	param set MAV_SYS_ID 1
 fi
 
 <<<<<<< ae960a03efd9336d6f96a3ef2ca16f5399ea95c7
 =======
+=======
+	param set MAV_SYS_ID 10
+>>>>>>> january debugging
 fi
+param set MAV_BROADCAST 1
 
 >>>>>>> EOD 12/14
 param set PWM_DISARMED 0
@@ -59,6 +64,7 @@ then
 	param set EKF2_EV_POS_Z 0
 fi
 
+<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
 <<<<<<< ae960a03efd9336d6f96a3ef2ca16f5399ea95c7
 #set the offboard control switch to an unused channel, and give it a thresholed so it's always on
 param set RC_MAP_OFFB_SW 18
@@ -71,6 +77,14 @@ param set RC_OFFB_TH -1
 param set RC_MAP_KILL_SW 17
 param set RC_KILLSWITCH_TH -1
 >>>>>>> EOD 12/14
+=======
+param set COM_RC_IN_MODE 1
+#set the offboard control switch to an unused channel, and give it a thresholed so it's always on
+param set RC_MAP_OFFB_SW 8
+param set RC_OFFB_TH 0.5
+param set RC_MAP_KILL_SW 7
+param set RC_KILLSWITCH_TH 0.5
+>>>>>>> january debugging
 
 #disable need for safety switch -- NAV should send this parameter with ES status
 param set CBRK_IO_SAFETY 22027
