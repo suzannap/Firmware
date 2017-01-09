@@ -270,6 +270,7 @@ namespace pozyx
 		quaternion_t poz_orientation;
 		struct att_pos_mocap_s pos;
 		unsigned startid = 0;
+		int validcount = 0;
 
 		pos.x = 0;
 		pos.y = 0;
@@ -285,6 +286,14 @@ namespace pozyx
 					pos_error_t poz_error;
 					if (POZYX_SUCCESS == bus.dev->getPositionError(&poz_error)){
 						PX4_INFO("Position covariance: x(%d) y(%d) z(%d) xy(%d) xz(%d) yz(%d)", poz_error.x, poz_error.y, poz_error.z, poz_error.xy, poz_error.xz, poz_error.yz);
+						if(poz_error.y >= 500) {
+							//position covariance is too big, not a good reading
+							poz_coordinates[i].x = 0;
+							poz_coordinates[i].y = 0;
+						}
+						else {
+							validcount += 1;
+						}
 					}
 				}
 			}
@@ -307,10 +316,7 @@ namespace pozyx
 			}
 
 		}	
-		//change position from NWU to NED and from m to mm
-		pos.x /= (count*1000);
-		pos.y /= (-count*1000);
-		//pos.z /= (-count*1000);
+
 
 
 		if (count > 1) {
@@ -325,8 +331,18 @@ namespace pozyx
 			pos.q[3] = sin(yaw/2);
 		}	
 		pos.timestamp = hrt_absolute_time();
-		orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
-		orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+
+		if (validcount > 0) {
+			//change position from NWU to NED and from m to mm
+			pos.x /= (validcount*1000);
+			pos.y /= (-validcount*1000);
+			//pos.z /= (-count*1000);
+			orb_advert_t pos_pub = orb_advertise(ORB_ID(att_pos_mocap), &pos);
+			orb_publish(ORB_ID(att_pos_mocap), pos_pub, &pos);
+		}
+		else {
+			PX4_INFO("No valid RTLS measurements");
+		}
 	}
 
 	void
@@ -346,12 +362,18 @@ namespace pozyx
 				{0x6853, 1, {6746, 4888, 1559}},
 				{0x6852, 1, {4689, 0, 2491}}
 			};
-			*/
 			device_coordinates_t anchorlist[num_anchors] = {
 				{0x684E, 1, {3479, -8725, 1479}},
 				{0x682E, 1, {16086, -6544, 1796}},
 				{0x6853, 1, {13334, 0, 1665}},
 				{0x6852, 1, {5896, 0, 1614}}
+			};
+			*/
+			device_coordinates_t anchorlist[num_anchors] = {
+				{0x6857, 1, {0, 0, 1902}},
+				{0x6827, 1, {-3106, 0, 1963}},
+				{0x684E, 1, {877, -6337, 1828}},
+				{0x6853, 1, {-3789, -6745, 1635}}
 			};
 			if (bus.dev->clearDevices() == POZYX_SUCCESS){
 				for (int j = 0; j < num_anchors; j++) {
@@ -538,7 +560,7 @@ pozyx_main(int argc, char *argv[])
 	if (!strcmp(verb, "start")) {
 		count = pozyx::start(busid);
 		if (count > 0) {
-			//pozyx::config(busid, count);
+			pozyx::config(busid, count);
 
 			if (thread_running) {
 				warnx("pozyx already running\n");
@@ -702,7 +724,7 @@ pozyx_pub_main_2(int argc, char *argv[])
 
 	while (!thread_should_exit) {
 		pozyx::getposition(POZYX_BUS_ALL, 2, false);
-		usleep(1000000);
+		usleep(3000000);
 	}
 
 	warnx("[pozyx_pub] exiting.\n");
