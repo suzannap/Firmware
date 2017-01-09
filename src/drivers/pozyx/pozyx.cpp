@@ -278,7 +278,14 @@ namespace pozyx
 					pos.q[3] = -poz_orientation.y;		
 				}			
 			}
+<<<<<<< f06506b434329f5929e0902ed1ae5d2f52aaeca7
 		}
+=======
+
+		}	
+
+
+>>>>>>> jan9start
 
 		if (count > 1) {
 			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
@@ -528,7 +535,7 @@ pozyx_main(int argc, char *argv[])
 	if (!strcmp(verb, "start")) {
 		count = pozyx::start(busid);
 		if (count > 0) {
-			//pozyx::config(busid, count);
+			pozyx::config(busid, count);
 
 			if (thread_running) {
 				warnx("pozyx already running\n");
@@ -592,10 +599,6 @@ pozyx_main(int argc, char *argv[])
 
 	//debug
 	if (!strcmp(verb, "debug")) {
-<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
-=======
-
->>>>>>> adding pozyx service functions
 		for (int i = 1; i < argc; i++) {
 			if (strcmp(argv[i], "-N") == 0) {
 				if (argc > i + 1) {
@@ -627,7 +630,6 @@ pozyx_main(int argc, char *argv[])
 			PX4_INFO("example: pozyx addanchor A23D 100 200 300");
 			exit(1);
 		}
-<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
 		exit(0);
 	}
 	//get anchors	
@@ -663,8 +665,6 @@ pozyx_main(int argc, char *argv[])
 	//reset to factory settings
 	if (!strcmp(verb, "resettofactory")) {
 		pozyx::resettofactory(busid, count);
-=======
->>>>>>> adding pozyx service functions
 		exit(0);
 	}
 	//get anchors	
