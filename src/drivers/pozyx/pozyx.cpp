@@ -11,51 +11,6 @@
  *
  * I2C interface for Pozyx Tag
  */
-/*
-#include <px4_config.h>
-
-#include <drivers/device/i2c.h>
-
-#include <sys/types.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <semaphore.h>
-#include <string.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <errno.h>
-#include <stdio.h>
-#include <math.h>
-#include <unistd.h>
-
-#include <nuttx/arch.h>
-#include <nuttx/wqueue.h>
-#include <nuttx/clock.h>
-
-#include <board_config.h>
-
-#include <systemlib/perf_counter.h>
-#include <systemlib/err.h>
-
-#include <drivers/drv_mag.h>
-#include <drivers/drv_hrt.h>
-#include <drivers/device/ringbuffer.h>
-#include <drivers/drv_device.h>
-
-#include <uORB/uORB.h>
-#include <uORB/topics/att_pos_mocap.h>
-
-#include <float.h>
-#include <getopt.h>
-#include <lib/conversion/rotation.h>
-
-#include "pozyx.h"
-//#include "pozyx_i2c.cpp"
-
-//#include <iostream>
-//using namespace std;
-*/
 
 #include <uORB/uORB.h>
 #include <uORB/topics/att_pos_mocap.h>
@@ -169,8 +124,7 @@ namespace pozyx
 	start(enum POZYX_BUS busid)
 	{
 		int started = 0;
-		unsigned i = 0;
-		for (i = 0; i < NUM_BUS_OPTIONS; i++) {
+		for (unsigned i = 0; i < NUM_BUS_OPTIONS; i++) {
 			if (busid == POZYX_BUS_ALL && bus_options[i].dev != NULL) {
 				//this device is already started
 				continue;
@@ -252,7 +206,7 @@ namespace pozyx
 			}
 			PX4_INFO("LED3 turned Off");
 
-			PX4_INFO("Tag %d PASS", i);
+			PX4_INFO("Tag %d PASS", bus.index);
 		}
 	}
 
@@ -270,7 +224,10 @@ namespace pozyx
 		quaternion_t poz_orientation;
 		struct att_pos_mocap_s pos;
 		unsigned startid = 0;
+<<<<<<< HEAD
 		int validcount = 0;
+=======
+>>>>>>> 5b51b41b30f9a3eab40d9a8578df8b3fb4f83395
 
 		pos.x = 0;
 		pos.y = 0;
@@ -315,12 +272,34 @@ namespace pozyx
 				}			
 			}
 
+			if (count == 1) {
+				if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
+					if (print_result) {
+						PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
+					}
+					//change orientation from NWU to NED rotate 180 degrees about x
+					//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
+					pos.q[0] = -poz_orientation.x;
+					pos.q[1] = poz_orientation.weight;
+					pos.q[2] = poz_orientation.z;
+					pos.q[3] = -poz_orientation.y;		
+				}			
+			}
 		}	
+<<<<<<< HEAD
 
 
 
 		if (count > 1) {
 			double yaw = atan ((poz_coordinates[0].y - poz_coordinates[1].y)/(poz_coordinates[0].x - poz_coordinates[1].x));
+=======
+		//change position from NWU to NED and from m to mm
+		pos.x /= (count*1000);
+		pos.y /= (-count*1000);
+		pos.z /= (-count*1000);
+		if (count > 1) {
+			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
+>>>>>>> 5b51b41b30f9a3eab40d9a8578df8b3fb4f83395
 
 			if (print_result) {
 				PX4_INFO("Current yaw: %f deg.", (yaw * 180 / 3.14159));
@@ -330,6 +309,7 @@ namespace pozyx
 			pos.q[2] = 0;
 			pos.q[3] = sin(yaw/2);
 		}	
+
 		pos.timestamp = hrt_absolute_time();
 
 		if (validcount > 0) {
@@ -350,17 +330,31 @@ namespace pozyx
 	{
 		unsigned startid = 0;
 
+<<<<<<< HEAD
 		for (int i=0; i<count; i++){			
+=======
+		for (int i=0; i<count; i++){
+>>>>>>> 5b51b41b30f9a3eab40d9a8578df8b3fb4f83395
 			struct pozyx_bus_option &bus = find_bus(busid, startid);
 			startid = bus.index + 1;
 
 			uint8_t num_anchors =4;
+<<<<<<< HEAD
 			/* //R&D test area
 			device_coordinates_t anchorlist[num_anchors] = {
+=======
+			/*device_coordinates_t anchorlist[num_anchors] = {
+>>>>>>> 5b51b41b30f9a3eab40d9a8578df8b3fb4f83395
 				{0x684E, 1, {0, 962, 1247}},
 				{0x682E, 1, {0, 4293, 2087}},
 				{0x6853, 1, {6746, 4888, 1559}},
 				{0x6852, 1, {4689, 0, 2491}}
+			};*/
+			device_coordinates_t anchorlist[num_anchors] = {
+				{0x684E, 1, {3479, -8725, 1479}},
+				{0x682E, 1, {19025, -15030, 1603}},
+				{0x6853, 1, {13334, 0, 1665}},
+				{0x6852, 1, {5896, 0, 1614}}
 			};
 			device_coordinates_t anchorlist[num_anchors] = {
 				{0x684E, 1, {3479, -8725, 1479}},
@@ -624,7 +618,6 @@ pozyx_main(int argc, char *argv[])
 
 	//debug
 	if (!strcmp(verb, "debug")) {
-
 		for (int i = 1; i < argc; i++) {
 			if (strcmp(argv[i], "-N") == 0) {
 				if (argc > i + 1) {
@@ -724,7 +717,7 @@ pozyx_pub_main_2(int argc, char *argv[])
 
 	while (!thread_should_exit) {
 		pozyx::getposition(POZYX_BUS_ALL, 2, false);
-		usleep(3000000);
+		usleep(500000);
 	}
 
 	warnx("[pozyx_pub] exiting.\n");

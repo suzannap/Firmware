@@ -103,7 +103,7 @@ PARAM_DEFINE_INT32(SYS_RESTART_TYPE, 2);
  * @reboot_required true
  * @group System
  */
-PARAM_DEFINE_INT32(SYS_MC_EST_GROUP, 1);
+PARAM_DEFINE_INT32(SYS_MC_EST_GROUP, 2);
 
 /**
  * TELEM2 as companion computer link
@@ -153,3 +153,11 @@ PARAM_DEFINE_INT32(SYS_PARAM_VER, 1);
  * @group System
  */
 PARAM_DEFINE_INT32(SYS_LOGGER, 0);
+
+/**
+ * Enable stack checking
+ *
+ * @min 0
+ * @group System
+ */
+PARAM_DEFINE_INT32(SYS_STCK_EN, 0);

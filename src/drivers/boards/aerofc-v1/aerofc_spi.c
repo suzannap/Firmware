@@ -1,7 +1,7 @@
-
 /****************************************************************************
  *
- *   Copyright (C) 2014 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2012-2016 PX4 Development Team. All rights reserved.
+ *         Author: David Sidrane <david_s5@nscdg.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,39 +33,62 @@
  ****************************************************************************/
 
 /**
- * @file publisher_example.cpp
- * Example subscriber for ros and px4
+ * @file tap-v1_spi.c
  *
- * @author Thomas Gubler <thomasgubler@gmail.com>
+ * Board-specific SPI functions.
  */
 
-#include "pozyx_publisher.h"
+/************************************************************************************
+ * Included Files
+ ************************************************************************************/
 
-using namespace px4;
+#include <px4_config.h>
 
-PozyxPublisher::PozyxPublisher() :
-	_n(appState),
-	_att_pos_mocap(_n.advertise<att_pos_mocap>())
+#include <stdint.h>
+#include <stdbool.h>
+#include <debug.h>
+
+#include <nuttx/spi.h>
+#include <arch/board/board.h>
+
+#include "up_arch.h"
+#include "chip.h"
+#include "stm32.h"
+#include "board_config.h"
+
+/************************************************************************************
+ * Public Functions
+ ************************************************************************************/
+
+/************************************************************************************
+ * Name: stm32_spiinitialize
+ *
+ * Description:
+ *   Called to configure SPI chip select GPIO pins for the AEROFC-v1 board.
+ *
+ ************************************************************************************/
+
+__EXPORT void stm32_spiinitialize(void)
 {
+#ifdef CONFIG_STM32_SPI1
+	px4_arch_configgpio(GPIO_SPI_CS_MPU6500);
+
+	/* De-activate all peripherals,
+	 * required for some peripheral
+	 * state machines
+	 */
+	px4_arch_gpiowrite(GPIO_SPI_CS_MPU6500, 1);
+#endif
 }
 
-px4::AppState PozyxPublisher::appState;
 
-int PozyxPublisher::main()
+__EXPORT void stm32_spi1select(FAR struct spi_dev_s *dev, enum spi_dev_e devid, bool selected)
 {
-	px4::Rate loop_rate(10);
+	/* SPI select is active low, so write !selected to select the device */
+	px4_arch_gpiowrite(GPIO_SPI_CS_MPU6500, !selected);
+}
 
-	while (!appState.exitRequested()) {
-		loop_rate.sleep();
-		_n.spinOnce();
-
-		/* Publish Att_Pos_Mocap */
-		att_pos_mocap att_pos_mocap_msg;
-		att_pos_mocap_msg.data().timestamp_last_valid = px4::get_time_micros();
-		PX4_INFO("rc: %" PRIu64, att_pos_mocap_msg.data().timestamp_last_valid);
-		_att_pos_mocap->publish(att_pos_mocap);
-
-	}
-
-	return 0;
+__EXPORT uint8_t stm32_spi1status(FAR struct spi_dev_s *dev, enum spi_dev_e devid)
+{
+	return SPI_STATUS_PRESENT;
 }

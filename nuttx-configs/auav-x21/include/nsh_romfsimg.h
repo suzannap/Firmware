@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2014 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2013 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,25 +32,11 @@
  ****************************************************************************/
 
 /**
- * @file publisher_main.cpp
- * Example publisher for ros and px4
+ * nsh_romfsetc.h
  *
- * @author Thomas Gubler <thomasgubler@gmail.com>
+ * This file is a stub for 'make export' purposes; the actual ROMFS
+ * must be supplied by the library client.
  */
-#include "pozyx_publisher.h"
 
-bool thread_running = false;     /**< Deamon status flag */
-
-int main(int argc, char **argv)
-{
-	px4::init(argc, argv, "pozyx_publisher");
-
-	PX4_INFO("starting");
-	PozyxPublisher p;
-	thread_running = true;
-	p.main();
-
-	PX4_INFO("exiting.");
-	thread_running = false;
-	return 0;
-}
+extern unsigned char romfs_img[];
+extern unsigned int romfs_img_len;

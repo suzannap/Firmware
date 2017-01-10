@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2014 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2013 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,27 +32,65 @@
  ****************************************************************************/
 
 /**
- * Based on:
- * @file publisher.h
- * Example publisher for ros and px4
+ * @file auav_led.c
  *
- * @author Thomas Gubler <thomasgubler@gmail.com>
+ * PX4FMU LED backend.
  */
-#pragma once
-#include <px4.h>
-#include <px4_app.h>
 
-class PozyxPublisher
+#include <px4_config.h>
+
+#include <stdbool.h>
+
+#include "stm32.h"
+#include <arch/board/board.h>
+
+#include "board_config.h"
+
+/*
+ * Ideally we'd be able to get these from up_internal.h,
+ * but since we want to be able to disable the NuttX use
+ * of leds for system indication at will and there is no
+ * separate switch, we need to build independent of the
+ * CONFIG_ARCH_LEDS configuration switch.
+ */
+__BEGIN_DECLS
+extern void led_init(void);
+extern void led_on(int led);
+extern void led_off(int led);
+extern void led_toggle(int led);
+__END_DECLS
+
+__EXPORT void led_init()
 {
-public:
-	PozyxPublisher();
+	/* Configure LED1 GPIO for output */
 
-	~PozyxPublisher() {};
+	px4_arch_configgpio(GPIO_LED1);
+}
 
-	int main();
+__EXPORT void led_on(int led)
+{
+	if (led == 1) {
+		/* Pull down to switch on */
+		px4_arch_gpiowrite(GPIO_LED1, false);
+	}
+}
 
-	static px4::AppState appState;
-protected:
-	px4::NodeHandle _n;
-	px4::Publisher<px4::att_pos_mocap> *_att_pos_mocap;
-};
+__EXPORT void led_off(int led)
+{
+	if (led == 1) {
+		/* Pull up to switch off */
+		px4_arch_gpiowrite(GPIO_LED1, true);
+	}
+}
+
+__EXPORT void led_toggle(int led)
+{
+	if (led == 1) {
+		if (px4_arch_gpioread(GPIO_LED1)) {
+			px4_arch_gpiowrite(GPIO_LED1, false);
+
+		} else {
+			px4_arch_gpiowrite(GPIO_LED1, true);
+		}
+	}
+}

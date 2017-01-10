@@ -18,7 +18,7 @@
 #define POZYX_WHOAMI_EXPECTED			0x43
 
 #define POZYX_CONVERSION_INTERVAL 		(400000 / 150)
-#define BUFFER_LENGTH 					32
+#define BUFFER_LENGTH 					128
 
 
 /* interface factory */
