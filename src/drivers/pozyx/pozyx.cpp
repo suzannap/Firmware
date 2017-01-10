@@ -264,6 +264,7 @@ namespace pozyx
 			pos.x += poz_coordinates[i].x;
 			pos.y += poz_coordinates[i].y;
 			//pos.z += poz_coordinates[i].z;
+		}
 
 			if (count == 1) {
 				if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
@@ -278,14 +279,6 @@ namespace pozyx
 					pos.q[3] = -poz_orientation.y;		
 				}			
 			}
-<<<<<<< f06506b434329f5929e0902ed1ae5d2f52aaeca7
-		}
-=======
-
-		}	
-
-
->>>>>>> jan9start
 
 		if (count > 1) {
 			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
@@ -397,10 +390,6 @@ namespace pozyx
 	}
 
 	void
-<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
-<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
-=======
->>>>>>> january debugging
 	getanchors(enum POZYX_BUS busid, int count)
 	{
 		unsigned startid = 0;
