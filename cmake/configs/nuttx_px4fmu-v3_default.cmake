@@ -47,10 +47,17 @@ set(config_module_list
 	drivers/sf0x
 	drivers/sf1xx
 	drivers/snapdragon_rc_pwm
+<<<<<<< HEAD
 <<<<<<< 9b5e454340d5c5f082ae2e4a0844e5afe17fbfa4
 =======
 	drivers/pozyx
 >>>>>>> trying to cleanup sync
+=======
+<<<<<<< HEAD
+	drivers/lis3mdl
+	drivers/pozyx
+=======
+>>>>>>> 315b8f33cfe8e2f9108bf61eb0f2800881d72bfd
 	drivers/srf02
 	drivers/stm32
 	drivers/stm32/adc
@@ -59,9 +66,13 @@ set(config_module_list
 	drivers/trone
 	drivers/vmount
 	modules/sensors
+<<<<<<< HEAD
 <<<<<<< 9b5e454340d5c5f082ae2e4a0844e5afe17fbfa4
 	drivers/pozyx
 =======
+=======
+>>>>>>> upstream/master
+>>>>>>> 315b8f33cfe8e2f9108bf61eb0f2800881d72bfd
 
 >>>>>>> trying to cleanup sync
 	#

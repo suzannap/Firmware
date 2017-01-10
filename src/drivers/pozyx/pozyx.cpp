@@ -76,23 +76,13 @@ namespace pozyx
 	void	reset(enum POZYX_BUS busid, int count);
 	void	getposition(enum POZYX_BUS busid, int count, bool print_result);
 	void	addanchor(enum POZYX_BUS busid, int count, uint16_t network_id, int32_t x, int32_t y, int32_t z);
-<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
-<<<<<<< 76f1aa845c34cc33bf2815a76552264c0e465209
-=======
->>>>>>> january debugging
 	void	autoanchors(enum POZYX_BUS busid, int count);
 	void	getanchors(enum POZYX_BUS busid, int count);
 	void	clearanchors(enum POZYX_BUS busid, int count);
 	void	getuwb(enum POZYX_BUS busid, int count);
 	void	setuwb(enum POZYX_BUS busid, int count, uint8_t bitrate, uint8_t prf, uint8_t plen, float gain_db);
 	void	resettofactory(enum POZYX_BUS busid, int count);
-<<<<<<< 3f096301202744e9e002e4f99bced243b5162e02
-=======
 	void	clearanchors(enum POZYX_BUS busid, int count);
->>>>>>> adding pozyx service functions
-=======
->>>>>>> january debugging
-
 	void	usage();
 
 
@@ -266,22 +256,25 @@ namespace pozyx
 			//pos.z += poz_coordinates[i].z;
 		}
 
-			if (count == 1) {
-				if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
-					if (print_result) {
-						PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
-					}
-					//change orientation from NWU to NED rotate 180 degrees about x
-					//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
-					pos.q[0] = -poz_orientation.x;
-					pos.q[1] = poz_orientation.weight;
-					pos.q[2] = poz_orientation.z;
-					pos.q[3] = -poz_orientation.y;		
-				}			
-			}
+
+		if (count == 1) {
+			if (POZYX_SUCCESS == bus.dev->getQuaternion(&poz_orientation)){
+				if (print_result) {
+					PX4_INFO("Current orientation: %1.4f  %1.4f  %1.4f  %1.4f", (double)poz_orientation.weight, (double)poz_orientation.x, (double)poz_orientation.y, (double)poz_orientation.z);
+				}
+				//change orientation from NWU to NED rotate 180 degrees about x
+				//[q0, q1, q2, q3] * [0, 1, 0, 0] = [-q1, q0, q3, -q2]
+				pos.q[0] = -poz_orientation.x;
+				pos.q[1] = poz_orientation.weight;
+				pos.q[2] = poz_orientation.z;
+				pos.q[3] = -poz_orientation.y;		
+			}			
+		}
+
 
 		if (count > 1) {
 			double yaw = atan ((poz_coordinates[1].y - poz_coordinates[0].y)/(poz_coordinates[1].x - poz_coordinates[0].x));
+
 			if (print_result) {
 				PX4_INFO("Current yaw: %f deg.", (yaw * 180 / 3.14159));
 			}
@@ -316,20 +309,7 @@ namespace pozyx
 			startid = bus.index + 1;
 
 			uint8_t num_anchors =4;
-			/* //R&D test area
-			device_coordinates_t anchorlist[num_anchors] = {
-				{0x684E, 1, {0, 962, 1247}},
-				{0x682E, 1, {0, 4293, 2087}},
-				{0x6853, 1, {6746, 4888, 1559}},
-				{0x6852, 1, {4689, 0, 2491}}
-			};
-			device_coordinates_t anchorlist[num_anchors] = {
-				{0x684E, 1, {3479, -8725, 1479}},
-				{0x682E, 1, {19025, -15030, 1603}},
-				{0x6853, 1, {13334, 0, 1665}},
-				{0x6852, 1, {5896, 0, 1614}}
-			};
-			*/
+
 			device_coordinates_t anchorlist[num_anchors] = {
 				{0x6857, 1, {0, 0, 1902}},
 				{0x6827, 1, {-3106, 0, 1963}},
@@ -494,9 +474,12 @@ namespace pozyx
 	void
 	usage()
 	{
+<<<<<<< HEAD
 
 	usage()
 	{
+=======
+>>>>>>> 315b8f33cfe8e2f9108bf61eb0f2800881d72bfd
 		warnx("usage: try 'start', 'stop', 'status', 'config', 'test'");
 		warnx("Debug functions:");
 		warnx("clearanchors");
@@ -681,18 +664,7 @@ pozyx_main(int argc, char *argv[])
 		}
 		exit(0);
 	}
-	//get UWB parameters	
-	if (!strcmp(verb, "getuwb")) {
-		pozyx::getuwb(busid, count);
-		exit(0);
-	}
-	//reset to factory settings
-	if (!strcmp(verb, "resettofactory")) {
-		pozyx::resettofactory(busid, count);
-		exit(0);
-	}
-
-
+	
 	pozyx::usage();;
 	exit(0);
 }
